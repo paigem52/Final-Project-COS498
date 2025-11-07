@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comments</title>
+</head>
+<body>
+    {{> header}}
+
+    <main>
+        <h1>All Comments</h1>
+        {{#if comments.length}}
+            <ul>
+                {{#each comments}}
+                    <li><strong>{{author}}</strong>: {{text}} ({{createdAt}})</li>
+                {{/each}}
+            </ul>
+        {{else}}
+            <p>No comments yet!</p>
+        {{/if}}
+    </main>
+
+    {{> footer}}
+</body>
+</html>
+

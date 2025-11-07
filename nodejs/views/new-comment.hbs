@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Comment</title>
+</head>
+<body>
+    {{> header}}
+
+    <main>
+        <h1>Post a New Comment</h1>
+        {{#if error}}
+            <p style="color:red">{{error}}</p>
+        {{/if}}
+        <form action="/comment" method="POST">
+            <label>Comment:</label>
+            <textarea name="text" required></textarea>
+            <br>
+            <button type="submit">Post Comment</button>
+        </form>
+    </main>
+
+    {{> footer}}
+</body>
+</html>
+
