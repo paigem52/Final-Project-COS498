@@ -118,7 +118,22 @@ app.get('/register', (req, res) => {
 
 // Login page
 app.get('/login', (req, res) => {
-    res.render('login', { title: 'Login' });
+    let errorMessage = null;
+    let registerMessage = null;
+
+    if (req.query.error === '1') {
+        errorMessage = "Invalid username or password"
+    }
+
+    if (req.query.registered === '1') {
+        registerMessage = "Successfully registered! Log in."
+    }
+
+    res.render('login', { 
+        title: 'Login',
+        error: errorMessage,
+        success: registerMessage
+    });
 });
 
 // Comments page
@@ -164,6 +179,8 @@ app.get('/comment/new', (req, res) => {
 app.post('/register', (req,res) => {
     const { username, password } = req.body;
 
+    /*
+    BLOCK OUT JSON
     //Validiate information
     if (!username || !password) {
         return res.status(400).json({
@@ -171,10 +188,17 @@ app.post('/register', (req,res) => {
         });
     }
 
-    //Make sure username and password have not been used?
     const existingUser = users.find(u => u.username === username);
     if (existingUser) {
         return res.status(409).json({
+            error: 'Username already exists'
+        });
+    }
+    */
+    const existingUser = users.find(u => u.username === username);
+    if (existingUser) {
+       return res.render('register', {
+            title: 'Register',
             error: 'Username already exists'
         });
     }
@@ -190,8 +214,7 @@ app.post('/register', (req,res) => {
     users.push(newUser);
 
     //Redirect to login page after registration
-
-    res.redirect('/login');
+    res.redirect('/login?registered=1');
 
 });
 
@@ -207,7 +230,7 @@ app.post('/login', (req, res) => {
     //Retrieve specific user
     const user = users.find( u => u.username === username && u.password === password);
     
-    // Simple authentication (in production, use proper password hashing)
+    // Simple authentication without proper password hashing
     if (user) {
         // Set session data
         req.session.isLoggedIn = true;
@@ -248,7 +271,7 @@ app.post('/comments', (req, res) => {
 
     //Check if user is logged in
     if (!req.session.isLoggedIn) {
-        return res.render('login', { error: 'Please log in to post comments.' });
+        return res.render('login', { error: 'You must be logged in to post a comment.' });
     }
 
     const { text } = req.body;
@@ -285,10 +308,11 @@ app.listen(PORT, '0.0.0.0', () => {
 /*
 Things I'd like to change
 welcome user where login is? 
-Add Register message new user created
 change order so comments is last?
 remove exclamation mark from no comments yet
 
 what's left to do
 change json errors to error messages
+
+should new comments redirect guests to login page? i dont like that it does
 */

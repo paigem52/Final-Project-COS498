@@ -14,6 +14,7 @@
             <p style="color:red">{{error}}</p>
         {{/if}}
         <form action="/register" method="POST">
+            <!-- Makes browser prevent submission until all fields are filled-->
             <label>Username:</label>
             <input type="text" name="username" required>
             <br>

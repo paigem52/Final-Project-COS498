@@ -13,6 +13,11 @@
         {{#if error}}
             <p style="color:red">{{error}}</p>
         {{/if}}
+
+        {{#if success}}
+            <p style="color:green">{{success}}</p>
+        {{/if}}
+
         <form action="/login" method="POST">
             <label>Username:</label>
             <input type="text" name="username" required>

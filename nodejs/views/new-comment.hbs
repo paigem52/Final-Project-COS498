@@ -15,7 +15,7 @@
         {{/if}}
         <form action="/comments" method="POST">
             <label>Comment:</label>
-            <textarea name="text" required></textarea>
+            <textarea name="text" id="text"> {{text}} </textarea>
             <br>
             <button type="submit">Post Comment</button>
         </form>
