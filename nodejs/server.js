@@ -105,6 +105,7 @@ app.get('/', (req, res) => {
         req.session.visitCount = (req.session.visitCount || 0) + 1;
     }
    
+    //Load home page with specific user
     res.render('home', {
         title: 'Welcome to Wild West Forum', 
         user: user
@@ -118,6 +119,8 @@ app.get('/register', (req, res) => {
 
 // Login page
 app.get('/login', (req, res) => {
+
+    //Error and Success Messages
     let errorMessage = null;
     let registerMessage = null;
 
@@ -128,7 +131,7 @@ app.get('/login', (req, res) => {
     if (req.query.registered === '1') {
         registerMessage = "Successfully registered! Log in."
     }
-
+    
     res.render('login', { 
         title: 'Login',
         error: errorMessage,

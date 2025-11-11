@@ -6,15 +6,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{title}}</title>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     {{> nav }}
-
     <main>
         <h1>{{title}}</h1>
-        <p>{{message}}</p>
-        
-    </main>
+
+        {{#if user.isLoggedIn}}
+      
+            <p>Welcome back, <strong>{{user.name}}</strong>!</p>
+            <p>You’ve visited this page {{user.visitCount}} times this session.</p>
+            <p>Logged in at: {{user.loginTime}}</p>
+        {{else}}
+                <p>Welcome, Guest!</p>
+                <p>Please <a href="/login">log in</a> or <a href="/register">register</a> to join the conversation.</p>
+        {{/if}}
+
+    <p> This serves as a very insecure web forum for COS498- 
+        Topics in Computer Science</p>
+    <p> This webpage was implemented using Handlebars with partials, 
+        containerized using Docker, indicated log in/log out via a cookie session.
+        This project is also maintained in a Git repository.</p>
+  </main>
 
     {{> footer}}
 </body>
