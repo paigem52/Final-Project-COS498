@@ -11,10 +11,9 @@ const session = require('express-session');  //No longer need cookie-parser
 const PORT = process.env.PORT || 3000;
 
 //--------------------------------------------------------------------
-//ADD SOMETHING HERE
+//In-Memory Storage
 //--------------------------------------------------------------------
 
-//In-memory storage
 const users = [];
 let nextId = 1;
 const comments = [];
@@ -34,6 +33,9 @@ hbs.registerPartials(path.join(__dirname, 'views', 'partials'));
 //--------------------------------------------------------------------
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from the 'public' directory
+app.use(express.static('public'));
 
 //Insecure setup
 app.use(session({
@@ -304,18 +306,3 @@ app.post('/comments', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });
-
-
-
-
-/*
-Things I'd like to change
-welcome user where login is? 
-change order so comments is last?
-remove exclamation mark from no comments yet
-
-what's left to do
-change json errors to error messages
-
-should new comments redirect guests to login page? i dont like that it does
-*/
