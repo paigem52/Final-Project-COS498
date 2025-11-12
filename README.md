@@ -23,7 +23,7 @@ cd Midterm-Project-COS498
 docker compose build <br>
 docker compose up <br>
 
-<br> This will build both the Node.js and Nginx containers
+<br> This will build both the Node.js and Nginx containers.
 
 <h3>4. Access the Website</h3>
 Once the containers are running, open your browser and go to: <br>
