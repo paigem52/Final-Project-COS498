@@ -21,15 +21,15 @@ cd Midterm-Project-COS498
 
 <h3>3. Build and Run the Containers</h3>
 docker compose build <br>
-docker compose up
+docker compose up <br>
 
-This will build both the Node.js and Nginx containers
+<br> This will build both the Node.js and Nginx containers
 
 <h3>4. Access the Website</h3>
 Once the containers are running, open your browser and go to: <br>
 http://157.245.118.26/
 
-The homepage should show navigation links for Register, Login, Comment Feed, and New Comment. <br>
+<br> The homepage should show navigation links for Register, Login, Comment Feed, and New Comment. <br>
 Only logged in users will be able to add a comment- guest users will be redirected to the login page.
 
 <h3>5. Stopping the Containers</h3>
