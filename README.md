@@ -12,6 +12,7 @@ ______________________________________________________________________
 
 <h2>How to Run the Project</h2>
 
+In your terminal:
 <h3>1. Clone the Repository</h3>
 git clone git@github.com:paigem52/Midterm-Project-COS498.git
 
@@ -19,20 +20,20 @@ git clone git@github.com:paigem52/Midterm-Project-COS498.git
 cd Midterm-Project-COS498
 
 <h3>3. Build and Run the Containers</h3>
-docker compose build
+docker compose build <br>
 docker compose up
 
 This will build both the Node.js and Nginx containers
 
 <h3>4. Access the Website</h3>
-Once the containers are running, open your browser and go to:
+Once the containers are running, open your browser and go to: <br>
 http://157.245.118.26/
 
-The homepage should show navigation links for Register, Login, Comment Feed, and New Comment. 
+The homepage should show navigation links for Register, Login, Comment Feed, and New Comment. <br>
 Only logged in users will be able to add a comment- guest users will be redirected to the login page.
 
 <h3>5. Stopping the Containers</h3>
-When finished testing:
+When finished testing: <br>
 docker compose down
 
 
