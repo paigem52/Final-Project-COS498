@@ -2,7 +2,7 @@
 
 **COS498- Fall 2025 Midterm Project**
 
-##Overview
+<h1>Overview</h1>
 This is an intentionally insecure web forum built with **Node.js**, **Express**, **Handlebars**, and **Nginx**, 
 containerized using **Docker** and managed with **docker-compose**.
 
@@ -10,7 +10,7 @@ It allows users to register, log in/log out, and post comments, all stored in si
 This project includes a **Public Git Repository** with meaningful commit history.
 ______________________________________________________________________
 
-##How to Run the Project
+<h2>How to Run the Project</h2>
 
 ###1. Clone the Repository
 git clone git@github.com:paigem52/Midterm-Project-COS498.git
