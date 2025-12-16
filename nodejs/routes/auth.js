@@ -1,0 +1,159 @@
+// routes/auth.js
+const express = require('express');
+const router = express.Router();
+const db = require('../database');
+const { validatePassword, hashPassword, comparePassword } = require('../modules/password-utils');
+const loginTracker = require('../modules/login-tracker');
+const { checkLoginLockout, getClientIP } = require('../modules/auth-middleware');
+
+/*
+ POST /register - Register a new user
+ */
+router.post('/register', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    // Validate input
+    if (!username || !password) {
+      return res.status(400).json({ 
+        error: 'Username and password are required' 
+      });
+    }
+    
+    // Validate password requirements
+    const validation = validatePassword(password);
+    if (!validation.valid) {
+      return res.status(400).json({
+        error: 'Password does not meet requirements',
+        errors: validation.errors
+      });
+    }
+    
+    // Check if username already exists
+    const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+    if (existingUser) {
+      return res.status(409).json({ 
+        error: 'Username already exists' 
+      });
+    }
+    
+    // Hash the password before storing
+    const passwordHash = await hashPassword(password);
+    
+    // Insert new user into database
+    const stmt = db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)');
+    const result = stmt.run(username, passwordHash);
+    
+    res.status(201).json({
+      message: 'User registered successfully',
+      userId: result.lastInsertRowid
+    });
+    
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/*
+ POST /login - Authenticate user
+ Now includes lockout checking and attempt tracking
+ */
+router.post('/login', checkLoginLockout, async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const ipAddress = getClientIP(req);
+    
+    // Validate input
+    if (!username || !password) {
+      // Record failed attempt if username is provided
+      if (username) {
+        loginTracker.recordAttempt(ipAddress, username, false);
+      }
+      return res.status(400).json({ 
+        error: 'Username and password are required' 
+      });
+    }
+    
+    // Find user by username
+    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+    
+    if (!user) {
+      // Record failed attempt (user doesn't exist)
+      loginTracker.recordAttempt(ipAddress, username, false);
+      return res.status(401).json({ 
+        error: 'Invalid username or password' 
+      });
+    }
+    
+    // Compare entered password with stored hash
+    const passwordMatch = await comparePassword(password, user.password_hash);
+    
+    if (!passwordMatch) {
+      // Record failed attempt (wrong password)
+      loginTracker.recordAttempt(ipAddress, username, false);
+      return res.status(401).json({ 
+        error: 'Invalid username or password' 
+      });
+    }
+    
+    // Successful login
+    loginTracker.recordAttempt(ipAddress, username, true);
+    
+    // Update last login time
+    db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(user.id);
+    
+    // Create session
+    req.session.userId = user.id;
+    req.session.username = user.username;
+    req.session.isLoggedIn = true;
+    
+    res.json({
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        username: user.username
+      }
+    });
+    
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/*
+ POST /logout - Logout user
+ */
+router.post('/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Logout error:', err);
+      return res.status(500).json({ error: 'Error logging out' });
+    }
+    res.json({ message: 'Logged out successfully' });
+  });
+});
+
+/*
+ GET /me - Get current user info (requires authentication)
+ */
+router.get('/me', (req, res) => {
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  
+  const user = db.prepare('SELECT id, username, created_at, last_login FROM users WHERE id = ?')
+    .get(req.session.userId);
+  
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  
+  res.json({ user });
+});
+
+module.exports = router;
+
+
