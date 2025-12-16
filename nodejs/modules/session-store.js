@@ -19,7 +19,6 @@ class SQLiteStore extends Store {
 
     // Use wildwest database to access sessions schema
     // Or else this will fall back to a local sessions.db file
-    //const dbPath = wildwest.db || path.join(__dirname, 'sessions.db');
     const dbPath = process.env.WILDWEST_DB_PATH ||  path.join(__dirname, 'wildwest.db');
 
     // Create the SQLite database

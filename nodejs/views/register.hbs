@@ -16,7 +16,7 @@
         {{#if error}}
             <p style="color:red">{{error}}</p>
         {{/if}}
-        <form action="/register" method="POST">
+        <form action="/api/auth/register" method="POST">
             <!-- Makes browser prevent submission until all fields are filled-->
             <label><strong>Username:</strong></label>
             <input type="text" name="username" required>
@@ -44,8 +44,4 @@
         <p><a href="/login">Already have an account? Login here</a></p>
         <p><a href="/">Back to Home</a></p>
     </main>
-
-    {{> footer}}
-</body>
-</html>
 

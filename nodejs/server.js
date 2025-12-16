@@ -198,8 +198,18 @@ app.get('/api/protected', requireAuth, (req, res) => {
 //--------------------------------------------------------------------
 
 //Register new user
-app.post('/register', (req,res) => {
+app.post('/register', async (req,res) => {
     const { username, password } = req.body;
+    try {
+        const hash = await hashPassword(req.body.password);
+        await saveUser(req.body.username, hash);
+        res.send('User registered');
+    } catch (error) {
+        return res.render('register', {
+            title: 'Register',
+            error: error
+        });
+    }
 
     /*
     BLOCK OUT JSON

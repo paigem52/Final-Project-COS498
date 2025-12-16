@@ -1,5 +1,5 @@
 // -- Auth-Middleware module -- 
-/**/
+/*AUTHENTICATION*/
 
 // Uses login-tracker module
 const loginTracker = require('./login-tracker');
