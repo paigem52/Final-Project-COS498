@@ -18,14 +18,31 @@
         {{/if}}
         <form action="/register" method="POST">
             <!-- Makes browser prevent submission until all fields are filled-->
-            <label>Username:</label>
+            <label><strong>Username:</strong></label>
             <input type="text" name="username" required>
             <br>
-            <label>Password:</label>
+            <br>
+            <div> 
+                <label><small>Password Requirements:</small></label>
+                <ul> </small>
+                    <li><small>At least 8 characters long</small></li>
+                    <li><small>At least one uppercase letter</small></li>
+                    <li><small>At least one lowercase letter</small></li>
+                    <li><small>At least one number</small></li>
+                    <li><small>At least one special character</small></li>
+                </ul>
+             </div>
+
+            <label><strong>Password:</strong></label>
+
             <input type="password" name="password" required>
+            <br>
             <br>
             <button type="submit">Register</button>
         </form>
+
+        <p><a href="/login">Already have an account? Login here</a></p>
+        <p><a href="/">Back to Home</a></p>
     </main>
 
     {{> footer}}

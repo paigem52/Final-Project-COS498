@@ -1,8 +1,9 @@
-// database.js
+// -- Database module -- 
+/* This modulensets up the wildwest SQLite3 database with a users table*/
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const dbPath = path.join(__dirname, 'app.db');
+const dbPath = path.join(__dirname, 'wildwest.db');
 const db = new Database(dbPath);
 
 // Enable foreign keys

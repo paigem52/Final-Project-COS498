@@ -1,14 +1,19 @@
-// routes/auth.js
+// -- Routes/ auth Module -- 
 const express = require('express');
 const router = express.Router();
-const db = require('../database');
+const db = require('../modules/database');
 const { validatePassword, hashPassword, comparePassword } = require('../modules/password-utils');
 const loginTracker = require('../modules/login-tracker');
 const { checkLoginLockout, getClientIP } = require('../modules/auth-middleware');
 
-/*
- POST /register - Register a new user
- */
+// --Register --
+
+// GET /register - Show registration form
+router.get('/register', (req, res) => {
+  res.sendFile(path.join(__dirname, '../register'));
+});
+
+// POST /register - Register a new user
 router.post('/register', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -46,7 +51,7 @@ router.post('/register', async (req, res) => {
     
     res.status(201).json({
       message: 'User registered successfully',
-      userId: result.lastInsertRowid
+      userId: result.lastInsertRowid,
     });
     
   } catch (error) {
@@ -55,10 +60,12 @@ router.post('/register', async (req, res) => {
   }
 });
 
-/*
- POST /login - Authenticate user
- Now includes lockout checking and attempt tracking
- */
+// --Login--
+// GET /login - Show login form
+router.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/login.html'));
+});
+// POST /login - Authenticate user- Now includes lockout checking and attempt tracking
 router.post('/login', checkLoginLockout, async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -80,6 +87,7 @@ router.post('/login', checkLoginLockout, async (req, res) => {
     
     if (!user) {
       // Record failed attempt (user doesn't exist)
+      // Don't reveal if username exists (security best practice)
       loginTracker.recordAttempt(ipAddress, username, false);
       return res.status(401).json({ 
         error: 'Invalid username or password' 
@@ -100,7 +108,7 @@ router.post('/login', checkLoginLockout, async (req, res) => {
     // Successful login
     loginTracker.recordAttempt(ipAddress, username, true);
     
-    // Update last login time
+    // Successful login - Update last login time
     db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?')
       .run(user.id);
     
@@ -123,9 +131,21 @@ router.post('/login', checkLoginLockout, async (req, res) => {
   }
 });
 
-/*
- POST /logout - Logout user
+/**
+ * GET /logout - Logout user (GET version for easy link access)
  */
+router.get('/logout', (req, res) => {
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Logout error:', err);
+      return res.redirect('/public/error.html?message=' + encodeURIComponent('An error occurred while logging out.') + '&back=/');
+    }
+    res.redirect('/public/logged-out.html');
+  });
+});
+
+// -- Logout --
+// POST /logout - Logout user
 router.post('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
@@ -150,6 +170,14 @@ router.get('/me', (req, res) => {
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
+
+  // Pass user data as query parameters to the profile page
+  const params = new URLSearchParams({
+    id: user.id,
+    username: user.username,
+    created_at: user.created_at || 'N/A',
+    last_login: user.last_login || 'Never'
+  });
   
   res.json({ user });
 });

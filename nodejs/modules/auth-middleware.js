@@ -1,14 +1,15 @@
-// modules/auth-middleware.js
+// -- Auth-Middleware module -- 
+/**/
+
+// Uses login-tracker module
 const loginTracker = require('./login-tracker');
 
-/*
- Middleware to check if user is authenticated
- Returns 401 if not authenticated
- */
+// Middleware to check if user is authenticated
 function requireAuth(req, res, next) {
   if (req.session && req.session.userId) {
     next();
   } else {
+    // Returns 401 if not authenticated
     res.status(401).json({ error: 'Authentication required' });
   }
 }

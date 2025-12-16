@@ -6,6 +6,9 @@ const hbs = require('hbs');
 const path = require('path');
 const app = express();
 const session = require('express-session');  //No longer need cookie-parser
+const SQLiteStore = require('./modules/session-store');
+const authRoutes = require('./routes/auth');
+const { requireAuth } = require('./modules/auth-middleware');
 
 //Interface for module
 const PORT = process.env.PORT || 3498;
@@ -37,16 +40,26 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files from the 'public' directory
 app.use(express.static('public'));
 
-//Insecure setup
+
+// Session configuration with SQLite store
+const sessionStore = new SQLiteStore({
+  db: path.join(__dirname, 'sessions.db'),
+  table: 'sessions'
+});
+
 app.use(session({
-    secret: 'wildwest',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: false, // Set to true if using HTTPS
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
+  store: sessionStore,
+  secret: process.env.SESSION_SECRET || 'change-this-secret-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: true, // True = HTTPS
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
 }));
+
+// Routes
+app.use('/api/auth', authRoutes);
 
 //Login State to help nav partials
 app.use((req, res, next) => {
@@ -175,6 +188,10 @@ app.get('/comment/new', (req, res) => {
     });
 });
 
+// Protected route example (doing this manually by sending)
+app.get('/api/protected', requireAuth, (req, res) => {
+  res.send(`Protected route that needs authentication. User: ${req.session.username} ID: ${req.session.userId}`);
+});
 
 //--------------------------------------------------------------------
 //POST Routes
@@ -305,4 +322,11 @@ app.post('/comments', (req, res) => {
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
+});
+
+// Graceful shutdown, this will help the session to close the db gracefully since we're now using it.
+process.on('SIGINT', () => {
+  console.log('\nShutting down gracefully...');
+  sessionStore.close();
+  process.exit(0);
 });
