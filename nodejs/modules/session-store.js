@@ -86,8 +86,8 @@ class SQLiteStore extends Store {
     try {
       // Insert new session or replace existing one
       this.db.prepare(
-        `INSERT OR REPLACE INTO ${this.table} (session_id, sess, expire) VALUES (?, ?, ?)`
-      ).run(session_id, sessData, expire);
+        `INSERT OR REPLACE INTO ${this.table} (session_id, sess, expire, user_id) VALUES (?, ?, ?, ?)`
+      ).run(session_id, sessData, expire, sess.userId);
 
       callback(null);
     } catch (err) {

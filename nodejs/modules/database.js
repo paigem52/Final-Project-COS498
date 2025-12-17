@@ -33,10 +33,11 @@ db.exec(`
 db.exec(`
   CREATE TABLE IF NOT EXISTS sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
     session_id TEXT UNIQUE NOT NULL,
+    user_id INTEGER NOT NULL,
+    sess TEXT UNIQUE NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    expiration DATETIME,
+    expire DATETIME,
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
 `);
@@ -77,5 +78,12 @@ db.exec(`
   ON login_attempts(ip_address, username, attempt_time)
 `);
 
-module.exports = db;
 
+console.log('Using SQLite DB at:', dbPath);
+
+// List tables
+const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+console.log('Tables:', tables);
+
+
+module.exports = db;
