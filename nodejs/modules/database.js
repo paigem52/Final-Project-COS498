@@ -9,18 +9,58 @@ const db = new Database(dbPath);
 // Enable foreign keys
 db.pragma('foreign_keys = ON');
 
-// Create users table
+// ------------
+// Users Table
+// ------------
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
+    email TEXT UNIQUE,
+    display_name TEXT,
+    profile_customization TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_login DATETIME
-  )
+    last_login DATETIME,
+    lockout DATETIME,
+    failed_attempts INTEGER DEFAULT 0
+  );
 `);
 
-// Create login_attempts table for tracking failed login attempts by IP and username
+// ----------------
+// Sessions Table
+// ----------------
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    session_id TEXT UNIQUE NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expiration DATETIME,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+`);
+
+// ----------------
+// Comments Table
+// ----------------
+db.exec(`
+  CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    parent_id INTEGER,
+    text TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
+  );
+`);
+
+// ----------------
+// Login Attempts Table
+// ----------------
+// Tracking failed login attempts by IP and username
 db.exec(`
   CREATE TABLE IF NOT EXISTS login_attempts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,7 +68,7 @@ db.exec(`
     username TEXT NOT NULL,
     attempt_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     success INTEGER DEFAULT 0
-  )
+  );
 `);
 
 // Create index for faster lookups on IP address and username combination
