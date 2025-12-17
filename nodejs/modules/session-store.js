@@ -38,7 +38,7 @@ class SQLiteStore extends Store {
       CREATE TABLE IF NOT EXISTS ${this.table} (
         session_id TEXT PRIMARY KEY,
         sess TEXT NOT NULL,
-        expiration_date INTEGER NOT NULL,
+        expire INTEGER NOT NULL,
 	      user_id INTEGER NOT NULL,
 	      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	      FOREIGN KEY(user_id) REFERENCES users(id)
@@ -55,7 +55,7 @@ class SQLiteStore extends Store {
   get(session_id, callback) {
     // Query for a non-expired session
     const row = this.db.prepare(
-      `SELECT sess FROM ${this.table} WHERE session_id = ? AND expiration_date > ?`
+      `SELECT sess FROM ${this.table} WHERE session_id = ? AND expire > ?`
     ).get(session_id, Date.now());
 
     // If a session exists, parse the JSON data
