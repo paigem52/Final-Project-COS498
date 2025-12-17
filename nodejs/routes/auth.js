@@ -6,11 +6,18 @@ const { validatePassword, hashPassword, comparePassword } = require('../modules/
 const loginTracker = require('../modules/login-tracker');
 const { checkLoginLockout, getClientIP } = require('../modules/auth-middleware');
 
+
+/* RES RENDER when --> page loads normally, success pages, GET routes
+RES STATUS when error
+page routes hbs --> res redirect
+apiroutes  json*/
+// --------------
 // --Register --
+// --------------
 
 // GET /register - Show registration form
 router.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname, '../register'));
+  res.render('register');
 });
 
 // POST /register - Register a new user
@@ -20,7 +27,7 @@ router.post('/register', async (req, res) => {
     
     // Validate input
     if (!username || !password) {
-      return res.status(400).json({ 
+      return res.status(400).render('register', { 
         error: 'Username and password are required' 
       });
     }
@@ -28,7 +35,7 @@ router.post('/register', async (req, res) => {
     // Validate password requirements
     const validation = validatePassword(password);
     if (!validation.valid) {
-      return res.status(400).json({
+      return res.status(400).render('register', {
         error: 'Password does not meet requirements',
         errors: validation.errors
       });
@@ -37,7 +44,7 @@ router.post('/register', async (req, res) => {
     // Check if username already exists
     const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
     if (existingUser) {
-      return res.status(409).json({ 
+      return res.status(409).render('register', { 
         error: 'Username already exists' 
       });
     }
@@ -46,24 +53,24 @@ router.post('/register', async (req, res) => {
     const passwordHash = await hashPassword(password);
     
     // Insert new user into database
-    const stmt = db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)');
-    const result = stmt.run(username, passwordHash);
+    const new_insert = db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)');
+    const result = new_insert.run(username, passwordHash);
     
-    res.status(201).json({
-      message: 'User registered successfully',
-      userId: result.lastInsertRowid,
-    });
+    res.redirect('/login?message=registered');
     
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).render('register', { error: 'Internal server error. Please try again later.' });
   }
 });
-
+// --------------
 // --Login--
+// --------------
+
 // GET /login - Show login form
 router.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/login.html'));
+  const { message } = req.query;
+  res.render('login', { message });
 });
 // POST /login - Authenticate user- Now includes lockout checking and attempt tracking
 router.post('/login', checkLoginLockout, async (req, res) => {
@@ -77,7 +84,7 @@ router.post('/login', checkLoginLockout, async (req, res) => {
       if (username) {
         loginTracker.recordAttempt(ipAddress, username, false);
       }
-      return res.status(400).json({ 
+      return res.status(400).render('login', { 
         error: 'Username and password are required' 
       });
     }
@@ -89,7 +96,7 @@ router.post('/login', checkLoginLockout, async (req, res) => {
       // Record failed attempt (user doesn't exist)
       // Don't reveal if username exists (security best practice)
       loginTracker.recordAttempt(ipAddress, username, false);
-      return res.status(401).json({ 
+      return res.status(401).render('login', { 
         error: 'Invalid username or password' 
       });
     }
@@ -100,7 +107,7 @@ router.post('/login', checkLoginLockout, async (req, res) => {
     if (!passwordMatch) {
       // Record failed attempt (wrong password)
       loginTracker.recordAttempt(ipAddress, username, false);
-      return res.status(401).json({ 
+      return res.status(401).render('login', { 
         error: 'Invalid username or password' 
       });
     }
@@ -116,18 +123,14 @@ router.post('/login', checkLoginLockout, async (req, res) => {
     req.session.userId = user.id;
     req.session.username = user.username;
     req.session.isLoggedIn = true;
-    
-    res.json({
-      message: 'Login successful',
-      user: {
-        id: user.id,
-        username: user.username
-      }
-    });
-    
+
+    // Homepage
+    return res.redirect('/');
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).render('login', { 
+      error: 'Internal server error' 
+    });
   }
 });
 
@@ -138,14 +141,17 @@ router.get('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
       console.error('Logout error:', err);
-      return res.redirect('/public/error.html?message=' + encodeURIComponent('An error occurred while logging out.') + '&back=/');
+      return res.status(500).render('error', {
+        error: 'An error occurred while logging out.'
+      });
     }
-    res.redirect('/public/logged-out.html');
+    res.redirect('/');
   });
 });
 
 // -- Logout --
 // POST /logout - Logout user
+//uses json bc its js calls 
 router.post('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
@@ -158,6 +164,7 @@ router.post('/logout', (req, res) => {
 
 /*
  GET /me - Get current user info (requires authentication)
+ uses json bc api endpoint
  */
 router.get('/me', (req, res) => {
   if (!req.session || !req.session.userId) {
