@@ -9,6 +9,7 @@ const session = require('express-session');  //No longer need cookie-parser
 const SQLiteStore = require('./modules/session-store');
 const authRoutes = require('./routes/auth');
 const { requireAuth } = require('./modules/auth-middleware');
+const db = require('./modules/database');
 
 //Interface for module
 const PORT = process.env.PORT || 3498;
@@ -36,6 +37,8 @@ hbs.registerPartials(path.join(__dirname, 'views', 'partials'));
 //--------------------------------------------------------------------
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.set('trust proxy',1);
 
 // Serve static files from the 'public' directory
 app.use(express.static('public'));
@@ -65,6 +68,7 @@ app.use('/api/auth', authRoutes);
 app.use((req, res, next) => {
     res.locals.isLoggedIn = req.session.isLoggedIn || false;
     res.locals.username = req.session.username || null;
+    res.locals.display_name = req.session.display_name || null;
     next();
 });
 
@@ -109,8 +113,10 @@ app.get('/', (req, res) => {
 
     // Check if user is logged in via session
     if (req.session.isLoggedIn) {
+        console.log('succesfully pulled session');
         user = {
             name: req.session.username,
+            display_name: req.session.display_name,
             isLoggedIn: true,
             loginTime: req.session.loginTime,
             visitCount: req.session.visitCount || 0
@@ -169,6 +175,18 @@ app.get('/comments', (req, res) => {
             isLoggedIn: true
         };
     }
+
+  // FETCH COMMENTS FROM DB WITH DISPLAY NAME
+    const comments = db.prepare(`
+        SELECT
+        comments.text,
+        comments.created_at AS createdAt,
+        users.display_name
+        FROM comments
+        JOIN users ON comments.user_id = users.id
+        ORDER BY comments.created_at DESC
+    `).all();
+
     res.render('comments', { title: 'Comments', 
         comments,
         user 
@@ -240,6 +258,8 @@ app.post('/register', async (req,res) => {
         id: nextId++,
         username,
         password,
+        display_name: req.body.display_name,
+        email: req.body.email,
         createdAt: new Date().toISOString()
     };
 
@@ -262,13 +282,16 @@ app.post('/login', (req, res) => {
     //Retrieve specific user
     const user = users.find( u => u.username === username && u.password === password);
     
-    // Simple authentication without proper password hashing
+    // Authentication
     if (user) {
         // Set session data
         req.session.isLoggedIn = true;
+        req.session.userId = user.id;
         req.session.username = user.username;
         req.session.loginTime = new Date().toISOString();
         req.session.visitCount = 0;
+        req.session.display_name = user.display_name;
+        req.session.email = user.email;
         
         console.log(`User ${username} logged in at ${req.session.loginTime}`);
         res.redirect('/');
@@ -313,20 +336,24 @@ app.post('/comments', (req, res) => {
              user: { name: req.session.username, isLoggedIn: true } // Pass user info
         });
     }
-
-    comments.push({
-        author: req.session.username,
+    //doesnt change with display name changes
+    /*comments.push({
+        author: req.session.display_name,
         text,
         createdAt: new Date().toLocaleString()
     });
+*/
+    db.prepare(`
+        INSERT INTO comments (user_id, text) VALUES (?, ?)
+    `).run(req.session.userId,text);
 
-    res.render('comments', {
+    /*res.render('comments', {
         title: 'Comments',
         comments,
         user: { name: req.session.username, isLoggedIn: true },
         message: 'Comment added.'
-    });
-   // res.redirect('/comments'); Do not want a page reload
+    });*/
+   res.redirect('/comments'); //////Do not want a page reload
 });
 
 // Start server

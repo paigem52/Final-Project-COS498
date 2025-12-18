@@ -9,6 +9,10 @@ services:
       - NODE_ENV=production
       - PORT=3498
     # No ports exposed - only nginx can access this container
+    ports:
+      - "3498:3498"
+    volumes:
+     - ./nodejs/modules:/app/modules
     networks:
       - app-network
 

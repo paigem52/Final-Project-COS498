@@ -15,7 +15,7 @@
 
         {{#if user.isLoggedIn}}
       
-            <p>Welcome back, <strong>{{user.name}}</strong>!</p>
+            <p>Welcome back, <strong>{{user.display_name}}</strong>!</p>
             <p>You’ve visited this page {{user.visitCount}} times this session.</p>
             <p>Logged in at: {{user.loginTime}}</p>
         {{else}}

@@ -15,7 +15,7 @@
         {{#if comments.length}}
             <ul>
                 {{#each comments}}
-                    <li><strong>{{author}}</strong>: {{text}} ({{createdAt}})</li>
+                    <li><strong>{{display_name}}</strong>: {{text}} ({{createdAt}})</li>
                 {{/each}}
             </ul>
         {{else}}

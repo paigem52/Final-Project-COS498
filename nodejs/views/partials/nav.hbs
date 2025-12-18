@@ -7,10 +7,12 @@
 	<a href="/comment/new">New Comment</a> |
 
     {{#if isLoggedIn}}
-
-	<!-- Show when user is logged in -->
-      <span>Welcome, {{username}}!</span> |
 	  
+    <!-- Account button triggers-->
+      <form action="/me" method="POST" style="display:inline;">
+        <button type="submit">Account</button>
+      </form> 
+
 	  <!-- Logout button triggers-->
       <form action="/logout" method="POST" style="display:inline;">
         <button type="submit">Logout</button>

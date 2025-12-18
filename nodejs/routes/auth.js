@@ -23,12 +23,12 @@ router.get('/register', (req, res) => {
 // POST /register - Register a new user
 router.post('/register', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, email, display_name } = req.body;
     
     // Validate input
-    if (!username || !password) {
+    if (!username || !password || !email || !display_name) {
       return res.status(400).render('register', { 
-        error: 'Username and password are required' 
+        error: 'Username, password, email and display name are required' 
       });
     }
     
@@ -48,13 +48,44 @@ router.post('/register', async (req, res) => {
         error: 'Username already exists' 
       });
     }
+
+    // Check if email format is validated
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).render('register', { 
+        error: 'Invalid email format' 
+      });
+}
+    // remove??? Check if display_name is unique/akready exists --should i make it unique in db?
+    const existingDisplayName = db.prepare('SELECT id FROM users WHERE display_name = ?').get(display_name);
+    if (existingDisplayName) {
+      return res.status(409).render('register', { 
+        error: 'Display name already taken' 
+      });
+}
+
+    if (display_name===username) {
+      return res.status(400).render('register', {
+        error: 'Display name cannot be the same as username'
+      });
+    }
+
+    // Check if email is unique
+    const existingEmail = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+      if (existingEmail) {
+        return res.status(409).render('register', { 
+          error: 'Email already registered' 
+        });
+}
+
     
     // Hash the password before storing
     const passwordHash = await hashPassword(password);
     
     // Insert new user into database
-    const new_insert = db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)');
-    const result = new_insert.run(username, passwordHash);
+    const new_insert = db.prepare('INSERT INTO users (username, password_hash, email, display_name) VALUES (?, ?, ?, ?)');
+    const result = new_insert.run(username, passwordHash, email, display_name);
+    console.log('Current users in DB:', db.prepare('SELECT * from users').all());
     
     res.redirect('/login?message=registered');
     
@@ -77,7 +108,7 @@ router.post('/login', checkLoginLockout, async (req, res) => {
   try {
     const { username, password } = req.body;
     const ipAddress = getClientIP(req);
-    
+    console.log('Login Post');
     // Validate input
     if (!username || !password) {
       // Record failed attempt if username is provided
@@ -92,6 +123,8 @@ router.post('/login', checkLoginLockout, async (req, res) => {
     // Find user by username
     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
     
+    console.log('User fetched for login:', user);
+
     if (!user) {
       // Record failed attempt (user doesn't exist)
       // Don't reveal if username exists (security best practice)
@@ -102,7 +135,9 @@ router.post('/login', checkLoginLockout, async (req, res) => {
     }
     
     // Compare entered password with stored hash
+    console.log('Login attempt:', { username, password, hash: user.password_hash});
     const passwordMatch = await comparePassword(password, user.password_hash);
+    console.log('Password match:', passwordMatch);
     
     if (!passwordMatch) {
       // Record failed attempt (wrong password)
@@ -123,6 +158,9 @@ router.post('/login', checkLoginLockout, async (req, res) => {
     req.session.userId = user.id;
     req.session.username = user.username;
     req.session.isLoggedIn = true;
+    req.session.display_name = user.display_name;
+    req.session.email = user.email;
+
 
     // Homepage
     return res.redirect('/');
