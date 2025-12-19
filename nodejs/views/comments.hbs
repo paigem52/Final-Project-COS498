@@ -3,27 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Feed Page</title>
+    <title>Comments Page</title>
     <link rel="stylesheet" href="/css/style.css">
-
 </head>
 <body>
     {{> nav }}
 
     <main>
         <h1>All Comments</h1>
+
+        <!-- Total number of comments -->
+        <p>Total Comments: {{totalComments}}</p>
+
         {{#if comments.length}}
             <ul>
                 {{#each comments}}
-                    <li><strong>{{display_name}}</strong>: {{text}} ({{createdAt}})</li>
+                    <li>
+                        <strong>{{author_display_name}}</strong>: {{text}} ({{createdAt}})
+
+                        <!-- Reply form for top-level comment -->
+                        <form action="/comments" method="POST" style="display:inline;">
+                            <input type="hidden" name="parent_id" value="{{id}}">
+                            <input type="text" name="text" placeholder="Reply...">
+                            <button type="submit">Reply</button>
+                        </form>
+
+                        {{#if replies.length}}
+                            <ul>
+                                {{#each replies}}
+                                    <li>
+                                        <strong>{{author_display_name}}</strong>: {{text}} ({{createdAt}})
+                                        <!-- No further nested reply form -->
+                                    </li>
+                                {{/each}}
+                            </ul>
+                        {{/if}}
+                    </li>
                 {{/each}}
             </ul>
         {{else}}
-            <p>No comments yet</p>
+            <p>No comments yet.</p>
         {{/if}}
+
+        <!-- Pagination -->
+        {{#if totalPages}}
+            <nav>
+                {{#if (gt currentPage 1)}}
+                    <a href="/comments?page={{subtract currentPage 1}}">Previous</a>
+                {{/if}}
+
+                Page {{currentPage}} of {{totalPages}}
+
+                {{#if (lt currentPage totalPages)}}
+                    <a href="/comments?page={{add currentPage 1}}">Next</a>
+                {{/if}}
+            </nav>
+        {{/if}}
+
     </main>
 
-    {{> footer}}
+    {{> footer }}
 </body>
 </html>
-

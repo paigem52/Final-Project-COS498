@@ -34,6 +34,13 @@ hbs.registerHelper('eq', function(a, b) {
   return a === b;
 });
 
+// Pagination helpers
+hbs.registerHelper('add', (a, b) => a + b);
+hbs.registerHelper('subtract', (a, b) => a - b);
+hbs.registerHelper('gt', (a, b) => a > b);
+hbs.registerHelper('lt', (a, b) => a < b);
+
+
 //Register partials directory
 hbs.registerPartials(path.join(__dirname, 'views', 'partials'));
 
@@ -181,20 +188,60 @@ app.get('/comments', (req, res) => {
         };
     }
 
-  // FETCH COMMENTS FROM DB WITH DISPLAY NAME
-    const comments = db.prepare(`
-        SELECT
-        comments.text,
-        comments.created_at AS createdAt,
-        users.display_name
+    // Pagination parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = 20; //per project requirements
+    const offset = (page-1) * limit;    //confused by this
+
+    // Fetch top-level comments
+    const topComments = db.prepare(`
+        SELECT comments.id, comments.text, comments.created_at AS createdAt, users.display_name AS author_display_name
         FROM comments
         JOIN users ON comments.user_id = users.id
+        WHERE comments.parent_id IS NULL
         ORDER BY comments.created_at DESC
-    `).all();
+        LIMIT ? OFFSET ?;
+    `).all(limit, offset);
+
+    // Fetch replies for these top-level comments
+    const topIds = topComments.map(comments => comments.id);
+    let replies = [];
+    if (topIds.length > 0) {
+        replies = db.prepare(`
+            SELECT comments.id, comments.text, comments.parent_id, comments.created_at AS createdAt, users.display_name AS author_display_name
+            FROM comments
+            JOIN users ON comments.user_id = users.id
+            WHERE comments.parent_id IN (${topIds.map(() => '?').join(',')})
+            ORDER BY comments.created_at ASC
+        `).all(...topIds);
+    }
+
+    // Map replies to top-level comments
+    const commentsWithReplies = topComments.map(comments => {
+        return {
+            ...comments,
+            replies: replies.filter(r => r.parent_id === comments.id)
+        };
+    });
+
+
+    const totalTopComments = db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM comments
+        WHERE parent_id IS NULL
+    `).get();
+
+    const totalPages = Math.ceil(totalTopComments.count / limit);
+
+    // Total comments including replies
+    const totalComments = db.prepare(`SELECT COUNT(*) AS count FROM comments;`).get();
 
     res.render('comments', { title: 'Comments', 
-        comments,
-        user 
+        comments: commentsWithReplies,
+        user,
+        currentPage: page,
+        totalPages,
+        totalComments: totalComments.count
     });
 });
 
@@ -348,9 +395,14 @@ app.post('/comments', (req, res) => {
         createdAt: new Date().toLocaleString()
     });
 */
+
+    const { parent_id } = req.body; // support optional replies
+    const parentId = parent_id ? parseInt(parent_id) : null; // null if top-level
+
+
     db.prepare(`
-        INSERT INTO comments (user_id, text) VALUES (?, ?)
-    `).run(req.session.userId,text);
+        INSERT INTO comments (user_id, parent_id, text, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(req.session.userId, parentId, text);
 
     /*res.render('comments', {
         title: 'Comments',

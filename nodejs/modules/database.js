@@ -51,7 +51,6 @@ db.exec(`
     user_id INTEGER NOT NULL,
     parent_id INTEGER,
     author_id INTEGER,
-    author_display_name TEXT,
     text TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME,
