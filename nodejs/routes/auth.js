@@ -200,32 +200,137 @@ router.post('/logout', (req, res) => {
   });
 });
 
+//PROFILE ROUTES
 /*
  GET /me - Get current user info (requires authentication)
  uses json bc api endpoint
  */
+// GET /profile - show user profile
 router.get('/profile', (req, res) => {
+  // Make sure user is logged in
   if (!req.session || !req.session.userId) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
-  
-  const user = db.prepare('SELECT id, username, created_at, last_login FROM users WHERE id = ?')
-    .get(req.session.userId);
-  
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
+    return res.redirect('/login'); // redirect to login instead of JSON
   }
 
-  // Pass user data as query parameters to the profile page
-  const params = new URLSearchParams({
-    id: user.id,
-    username: user.username,
-    created_at: user.created_at || 'N/A',
-    last_login: user.last_login || 'Never'
-  });
+  // Fetch user info from DB
+  const user = db.prepare(`
+    SELECT id, username, display_name, email, created_at, last_login, profile_customization
+    FROM users
+    WHERE id = ?
+  `).get(req.session.userId);
+
+  if (!user) {
+    return res.status(404).render('profile', { error: 'User not found' });
+  }
+
+  //Parse prof customization json
+  const customization = user.profile_customization ? JSON.parse(user.profile_customization) : {};
   
-  res.json({ user });
+  // Render profile page with user info
+  res.render('profile', {
+    title: `${user.display_name || user.username}'s Profile`,
+    user,
+    customization,
+    isLoggedIn: true    //fixes bug where login/register appear in account page
+  });
 });
+
+// New GET /profile/customize
+router.get('/profile/customize', (req, res) => {
+  if (!req.session?.userId) return res.redirect('/login');
+
+  const user = db.prepare('SELECT profile_customization FROM users WHERE id = ?')
+                 .get(req.session.userId);
+
+  const customization = user.profile_customization ? JSON.parse(user.profile_customization) : {};
+
+  res.render('profile-customize', { user, customization });
+});
+
+// POST /profile/customize - Update user profile and customization
+router.post('/profile/customize', (req, res) => {
+  if (!req.session?.userId) return res.redirect('/login');
+
+  try {
+    let { display_name, email, display_name_color, avatar, bio } = req.body;
+
+    if (email === '') {
+      email = null;
+    }
+
+    if (display_name === '') {
+      display_name = null;
+    }
+
+  //Validate email format only IF user typed on
+  if (email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).render('profile-customize', { 
+        user: req.session, 
+        customization: req.body, 
+        error: 'Invalid email format.' 
+      });
+    }
+  }
+
+    // Check for unique display name
+    const existingDisplayName = db.prepare('SELECT id FROM users WHERE display_name = ? AND id != ?').get(display_name, req.session.userId);
+    if (existingDisplayName) {
+      return res.status(409).render('profile-customize', { 
+        user: req.session, 
+        customization: req.body, 
+        error: 'Display name already taken.' 
+      });
+    }
+
+    // Check for unique email
+    const existingEmail = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, req.session.userId);
+    if (existingEmail) {
+      return res.status(409).render('profile-customize', { 
+        user: req.session, 
+        customization: req.body, 
+        error: 'Email already registered.' 
+      });
+    }
+
+    // Prepare customization object
+    const customization = { 
+      display_name_color: display_name_color || '#0000', 
+      avatar: avatar || '', 
+      bio: bio || ''
+    };
+
+    const finalDisplayName = display_name ?? req.session.display_name;
+    //Change email if entered, if not keep original
+    const finalEmail = email ?? req.session.email;
+
+    // Update database
+    db.prepare(`
+      UPDATE users
+      SET display_name = ?, email = ?, profile_customization = ?
+      WHERE id = ?
+    `).run(finalDisplayName, finalEmail, JSON.stringify(customization), req.session.userId);
+
+    // Update session info so page reflects changes immediately
+    req.session.display_name = finalDisplayName;
+    req.session.email = finalEmail;
+
+    // Redirect back to profile page
+    res.redirect('/api/auth/profile');
+
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).render('profile', { 
+      user: req.session, 
+      customization: req.body, 
+      error: 'Internal server error. Please try again later.' 
+    });
+  }
+});
+
+
+
 
 module.exports = router;
 

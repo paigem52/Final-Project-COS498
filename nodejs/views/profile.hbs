@@ -1,22 +1,47 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Profile</title>
-    <link rel="stylesheet" href="/Midterm-Project-COS498/nodejs/public/css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{user.display_name}}'s Profile</title>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <h1>User Profile</h1>
+    {{> nav }}
+
+<main>
+    <h1 style="color: {{customization.display_name_color}};">
+        {{user.display_name}}
+    </h1>
+
+    <!-- Avatar -->
+    {{#if customization.avatar}}
+        <img src="{{customization.avatar}}" alt="Avatar" width="100">
+    {{/if}}
+
+    <!-- Bio -->
+    {{#if customization.bio}}
+        <p>{{customization.bio}}</p>
+    {{/if}}
+
+    <section>
+        <p><strong>Username:</strong> {{user.username}}</p>
+        <p><strong>Display Name:</strong> {{user.display_name}}</p>
+        <p><strong>Email:</strong> {{user.email}}</p>
+        <p><strong>Account Created:</strong> {{user.created_at}}</p>
+        <p><strong>Last Login:</strong> {{user.last_login}}</p>
+    </section>
     
-    <h2>Welcome, {{user.name}}!</h2>
-    <p><strong>Login Time:</strong> {{user.loginTime}}</p>
-    <p><strong>Visit Count:</strong> {{user.visitCount}}</p>
+    <a href="/api/auth/profile/customize"> <button>Edit Profile</button> </a>
+
     
-    <p>
-        <a href="/">Home</a> | 
-        <form method="POST" action="/logout" style="display: inline;">
+
+    <section>
+        <form action="/logout" method="POST">
             <button type="submit">Logout</button>
         </form>
-    </p>
-    
-</body>
-</html>
+    </section>
+
+    <p><a href="/"> Back to Home</a></p>
+</main>
+

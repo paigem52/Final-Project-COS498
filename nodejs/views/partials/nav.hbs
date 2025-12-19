@@ -9,9 +9,8 @@
     {{#if isLoggedIn}}
 	  
     <!-- Account button triggers-->
-      <form action="/me" method="POST" style="display:inline;">
-        <button type="submit">Account</button>
-      </form> 
+    <a href="/api/auth/profile">Account</a> |
+
 
 	  <!-- Logout button triggers-->
       <form action="/logout" method="POST" style="display:inline;">

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customize Profile</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    {{> nav }}
+
+    <main>
+        <h1>Customize Your Profile</h1>
+
+        {{#if error}}
+            <p style="color:red">{{error}}</p>
+        {{/if}}
+
+        <form action="/api/auth/profile/customize" method="POST">
+           
+            <!-- Display Name -->
+            <label for="display_name">Display Name:</label>
+            <input type="text" id="display_name" name="display_name" value="{{user.display_name}}">
+            <br>
+
+            <!-- Email -->
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" value="{{user.email}}">
+            <br>
+
+            <!-- Display Name Color -->
+            <label for="display_name_color">Display Name Color:</label>
+            <input type="color" id="display_name_color" name="display_name_color" value="{{customization.display_name_color}}">
+            <br>
+
+            <!-- Avatar / Icon -->
+            <label for="avatar">Avatar URL or choose predefined:</label>
+            <input type="text" id="avatar" name="avatar" value="{{customization.avatar}}" placeholder="Enter URL">
+            <br>
+            <p>Or choose from predefined:</p>
+            <select name="avatar">
+                <option value="avatar1.png" {{#if (eq customization.avatar "avatar1.png")}}selected{{/if}}>Avatar 1</option>
+                <option value="avatar2.png" {{#if (eq customization.avatar "avatar2.png")}}selected{{/if}}>Avatar 2</option>
+                <option value="avatar3.png" {{#if (eq customization.avatar "avatar3.png")}}selected{{/if}}>Avatar 3</option>
+            </select>
+            <br>
+
+            <!-- Bio -->
+            <label for="bio">Bio:</label>
+            <textarea id="bio" name="bio" rows="4" cols="50">{{customization.bio}}</textarea>
+            <br>
+
+            <button type="submit">Save Customizations</button>
+        </form>
+
+        <p><a href="/api/auth/profile"> Back to Profile</a></p>
+    </main>
+
+    {{> footer }}
+</body>
+</html>

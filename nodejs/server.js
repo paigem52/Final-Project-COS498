@@ -15,7 +15,7 @@ const db = require('./modules/database');
 const PORT = process.env.PORT || 3498;
 
 //--------------------------------------------------------------------
-//In-Memory Storage
+//In-Memory Storage --REMOVE?///
 //--------------------------------------------------------------------
 
 const users = [];
@@ -28,6 +28,11 @@ const sessions = [];
 //--------------------------------------------------------------------
 app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
+
+// Helper to check equality
+hbs.registerHelper('eq', function(a, b) {
+  return a === b;
+});
 
 //Register partials directory
 hbs.registerPartials(path.join(__dirname, 'views', 'partials'));
