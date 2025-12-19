@@ -28,16 +28,16 @@ function checkLoginLockout(req, res, next) {
     return next();
   }
   
-  const lockoutStatus = loginTracker.checkLockout(ipAddress, username);
-  
-  if (lockoutStatus.locked) {
-    const minutesRemaining = Math.ceil(lockoutStatus.remainingTime / (60 * 1000));
-    return res.status(429).json({
-      error: 'Too many failed login attempts',
-      message: `Too many failed attempts for this username. Please try again in ${minutesRemaining} minute(s).`,
-      remainingTime: lockoutStatus.remainingTime
-    });
-  }
+  // Check lockout status manually for HBS rendering (overrides middleware JSON)
+    const lockoutStatus = loginTracker.checkLockout(ipAddress, username);
+    if (lockoutStatus.locked) {
+      const minutesRemaining = Math.ceil(lockoutStatus.remainingTime / (60 * 1000));
+      // CHANGE: Render HBS page instead of sending JSON
+      return res.status(429).render('login', { 
+        error: `Too many failed login attempts. Try again in ${minutesRemaining} minute(s).` ,
+        minutesRemaining
+      });
+    }
   
   next();
 }

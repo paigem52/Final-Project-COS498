@@ -204,7 +204,7 @@ router.post('/logout', (req, res) => {
  GET /me - Get current user info (requires authentication)
  uses json bc api endpoint
  */
-router.get('/me', (req, res) => {
+router.get('/profile', (req, res) => {
   if (!req.session || !req.session.userId) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
