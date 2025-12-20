@@ -1,6 +1,12 @@
-//--------------------------------------------------------------------
+//=============================================
+// Server.js Module
+/* Main entry point for the Node.js and Express application
+// Sets up server, routing, sessions, Handlebars views, and Socket.IO chat */
+//=============================================
+
+//-----------------
 //Required Modules
-//--------------------------------------------------------------------
+//-----------------
 const express = require('express');
 const hbs = require('hbs');
 const path = require('path');
@@ -11,14 +17,14 @@ const authRoutes = require('./routes/auth');
 const { requireAuth } = require('./modules/auth-middleware');
 const db = require('./modules/database');
 
-// Socket.io 
+// Socket.io setup
 const http = require('http');
 const { Server } = require('socket.io');
 
 // Create HTTP server from Express app
 const server = http.createServer(app);
 
-// Add Socket.IO to server
+// Initialize Socket.IO on top of HTTP server with CORS enabled
 const io = new Server(server, {
     cors: {
         origin: "*",
@@ -26,33 +32,24 @@ const io = new Server(server, {
     }
 });
 
-// Attach io to app so routers can access it
+// Attach Socket.IO instance to Express app for access in routes
 app.set('io', io);
 
-// Interface for module
+// Server port configuration
 const PORT = process.env.PORT || 3498;
 
-//--------------------------------------------------------------------
-//In-Memory Storage --REMOVE?///
-//--------------------------------------------------------------------
-
-const users = [];
-let nextId = 1;
-const comments = [];
-const sessions = [];
-
-//--------------------------------------------------------------------
+//------------------
 // Handlebars Setup
-//--------------------------------------------------------------------
+//------------------
 app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Helper to check equality
+//Helpers:
+// -- Check Equality
 hbs.registerHelper('eq', function(a, b) {
   return a === b;
 });
-
-// Pagination helpers
+// -- Pagination
 hbs.registerHelper('add', (a, b) => a + b);
 hbs.registerHelper('subtract', (a, b) => a - b);
 hbs.registerHelper('gt', (a, b) => a > b);
@@ -61,12 +58,13 @@ hbs.registerHelper('lt', (a, b) => a < b);
 //Register partials directory
 hbs.registerPartials(path.join(__dirname, 'views', 'partials'));
 
-//--------------------------------------------------------------------
+//-------------
 //Middleware
-//--------------------------------------------------------------------
+//-------------
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Needed (Nginx proxy)
 app.set('trust proxy',1);
 
 // Serve static files from the 'public' directory
@@ -84,16 +82,18 @@ const sessionMiddleware = session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: true, // True = HTTPS
+    secure: true, // Cookie sent over HTTPS
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 });
 
+// Apply session middleware:
+// -- to Express
 app.use(sessionMiddleware);
+// -- to Socket.IO engine for shared sessions
 io.engine.use(sessionMiddleware);
 
 // Make login info available in templates
-//Login State to help nav partials
 app.use((req, res, next) => {
     res.locals.isLoggedIn = req.session.isLoggedIn || false;
     res.locals.username = req.session.username || null;
@@ -101,23 +101,14 @@ app.use((req, res, next) => {
     next();
 });
 
-
-
+//--------
 // Routes
-//----------------------------------
+//--------
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', require('./routes/chat')); // chat API for history
 
-
-
-//--------------------------------------------------------------------
 //Health/Test Routes
-
-/* Nginx will handle static file serving --> app.use(express.static('public'));
-    API Routes-- > don't include '/api' in routes because nginx strips it when forwarding
-    nginx receives: http://localhost/api/users & forwards to: http://backend-nodejs:3000/users (without /api)*/
-
-//--------------------------------------------------------------------
+// Used for monitoring or verifying the server is running
 
 app.get('/health', (req, res) => {
     res.json({ 
@@ -126,7 +117,6 @@ app.get('/health', (req, res) => {
     });
 });
 
-//Test
 app.get('/test', (req, res) => {
   res.render('home', {
     title: 'Handlebars Test',
@@ -134,12 +124,13 @@ app.get('/test', (req, res) => {
   });
 });
 
-//--------------------------------------------------------------------
+//--------------------------
 // Socket.IO Real-Time Chat
-//--------------------------------------------------------------------
+//--------------------------
 io.on('connection', (socket) => {
     const session = socket.request.session;
 
+    // Disconnect unauthenticated users
     if (!session?.isLoggedIn) {
         socket.emit('error', { message: 'Authentication required' });
         socket.disconnect();
@@ -148,16 +139,16 @@ io.on('connection', (socket) => {
 
     console.log(`User ${session.display_name} connected to chat.`);
 
-    // Send last 50 messages
+    // Send last 50 messages to user
     const recentMessages = db.prepare(`
         SELECT display_name, message, timestamp
         FROM chat
         ORDER BY timestamp DESC
         LIMIT 50
-    `).all().reverse(); // oldest first
+    `).all().reverse(); // Send oldest first
     socket.emit('chatHistory', recentMessages);
 
-    // Handle incoming messages
+    // Handle incoming messages from client
     socket.on('sendMessage', (data) => {
         console.log('Received message:', data);
         const msg = data.message?.trim();
@@ -167,27 +158,31 @@ io.on('connection', (socket) => {
         const displayName = session.display_name;
         const userId = session.userId;
 
+        // Save message to database
         db.prepare(`
             INSERT INTO chat (user_id, display_name, message, timestamp)
             VALUES (?, ?, ?, ?)
         `).run(userId, displayName, msg, timestamp);
 
+        // Broadcast message to all connected clients
         io.emit('message', { display_name: displayName, message: msg, timestamp });
     });
 
+    // Log disconnections
     socket.on('disconnect', () => {
         console.log(`User ${session.display_name} disconnected.`);
     });
 });
 
-//--------------------------------------------------------------------
+//--------------
 //GET Routes
-//--------------------------------------------------------------------
+//--------------
 
-//Homepage
+//----------
+// Homepage
 app.get('/', (req, res) => {
    
-    //Guest object to act as default if there is no session
+    // Default guest user object
      let user = { 
         name: "Guest",
         isLoggedIn: false,
@@ -195,10 +190,11 @@ app.get('/', (req, res) => {
         visitCount: 0
     }; 
 
-    // Check if user is logged in via session
+    // If logged in, populate session info
     if (req.session.isLoggedIn) {
-        console.log('succesfully pulled session');
-        // Format login time nicely
+        // -- console.log('succesfully pulled session');
+
+        // Format login time
         const loginTimeISO =req.session.loginTime || new Date().toISOString();
         const loginTimeFormatted = new Date(loginTimeISO).toLocaleString('en-US', { 
                 timeZone: 'America/New_York',
@@ -215,26 +211,28 @@ app.get('/', (req, res) => {
             visitCount: req.session.visitCount
         };
         
-        // Increment visit count
+        // Increment visit count per session
         req.session.visitCount = (req.session.visitCount || 0) + 1;
     }
    
-    //Load home page with specific user
+    // Render home page with specific user
     res.render('home', {
         title: 'Welcome to Less Wild West Forum', 
         user: user
     });
 });
 
-//Registration page
+//------------------
+//Registration Page
 app.get('/register', (req, res) => {
     res.render('register', { title: 'Register' });
 });
 
-// Login page
+//------------
+// Login Page
 app.get('/login', (req, res) => {
 
-    //Error and Success Messages
+    // Error and Success Messages
     let errorMessage = null;
     let registerMessage = null;
 
@@ -253,15 +251,18 @@ app.get('/login', (req, res) => {
     });
 });
 
-// Comments page
+//---------------
+// Comments Page
+// -- Pagination    -- Replies
+
 app.get('/comments', (req, res) => {
-    // Default user is guest
+    // Default guest user
     let user = {
         name: "Guest",
         isLoggedIn: false
     };
 
-    // If logged in, use session info
+    // Session info for logged in users
     if (req.session.isLoggedIn) {
         user = {
             name: req.session.username,
@@ -269,10 +270,10 @@ app.get('/comments', (req, res) => {
         };
     }
 
-    // Pagination parameters
+    // Pagination setup
     const page = parseInt(req.query.page) || 1;
-    const limit = 20; //per project requirements
-    const offset = (page-1) * limit;    //confused by this
+    const limit = 20; //Per project requirements
+    const offset = (page-1) * limit;
 
     // Fetch top-level comments
     const topComments = db.prepare(`
@@ -297,7 +298,7 @@ app.get('/comments', (req, res) => {
         `).all(...topIds);
     }
 
-    // Map replies to top-level comments
+    // Map replies to their parent comments
     const commentsWithReplies = topComments.map(comments => {
         return {
             ...comments,
@@ -311,7 +312,7 @@ app.get('/comments', (req, res) => {
             
             replies: replies.filter(r => r.parent_id === comments.id).map(r => ({
             ...r,
-                // Convert timestamp for replies
+                // Format timestamp
                 createdAt: new Date(r.createdAt).toLocaleString('en-US', { 
                     timeZone: 'America/New_York', 
                     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -322,7 +323,7 @@ app.get('/comments', (req, res) => {
         };
     });
 
-
+    // Total counts for pagination
     const totalTopComments = db.prepare(`
         SELECT COUNT(*) AS count
         FROM comments
@@ -343,7 +344,8 @@ app.get('/comments', (req, res) => {
     });
 });
 
-// New comment form
+//------------------
+// New Comment Page
 app.get('/comment/new', (req, res) => {
     let user = { name: "Guest", isLoggedIn: false };
     if (req.session.isLoggedIn) {
@@ -356,11 +358,14 @@ app.get('/comment/new', (req, res) => {
     });
 });
 
-// Protected route example (doing this manually by sending)
+//-----------------------------
+// -- Example: Protected Route
 app.get('/api/protected', requireAuth, (req, res) => {
   res.send(`Protected route that needs authentication. User: ${req.session.username} ID: ${req.session.userId}`);
 });
 
+//-----------
+// Chat Page
 app.get('/chat', (req, res) => {
     if (!req.session.isLoggedIn) return res.redirect('/login');
     res.render('chat', { 
@@ -369,13 +374,12 @@ app.get('/chat', (req, res) => {
     });
 });
 
-
-
-//--------------------------------------------------------------------
+//--------------
 //POST Routes
-//--------------------------------------------------------------------
+//--------------
 
-//Register new user
+//---------
+//Register
 app.post('/register', async (req,res) => {
     const { username, password } = req.body;
     try {
@@ -389,22 +393,7 @@ app.post('/register', async (req,res) => {
         });
     }
 
-    /*
-    BLOCK OUT JSON
-    //Validiate information
-    if (!username || !password) {
-        return res.status(400).json({
-            error: 'Username and password are required'
-        });
-    }
-
-    const existingUser = users.find(u => u.username === username);
-    if (existingUser) {
-        return res.status(409).json({
-            error: 'Username already exists'
-        });
-    }
-    */
+    // Check if user exists
     const existingUser = users.find(u => u.username === username);
     if (existingUser) {
        return res.render('register', {
@@ -413,7 +402,7 @@ app.post('/register', async (req,res) => {
         });
     }
 
-    //Create new user
+    // Create new user
     const newUser = {
         id: nextId++,
         username,
@@ -425,24 +414,20 @@ app.post('/register', async (req,res) => {
 
     users.push(newUser);
 
-    //Redirect to login page after registration
+    // Redirect to login page after registration
     res.redirect('/login?registered=1');
 
 });
 
-//Login
+//------------
+// Login Page
 app.post('/login', (req, res) => {
-
-    //if works, authenticate session cookie!
-    //Make sure username and password are correct/ exists
-    
     const username = req.body.username;
     const password = req.body.password;
 
-    //Retrieve specific user
+    // Authenticate user
     const user = users.find( u => u.username === username && u.password === password);
-    
-    // Authentication
+
     if (user) {
         // Set session data
         req.session.isLoggedIn = true;
@@ -453,15 +438,17 @@ app.post('/login', (req, res) => {
         req.session.display_name = user.display_name;
         req.session.email = user.email;
         
-        console.log(`User ${username} logged in at ${req.session.loginTime}`);
+       // -- console.log(`User ${username} logged in at ${req.session.loginTime}`);
         res.redirect('/');
     } else {
         res.redirect('/login?error=1');
     }
 });
 
-//Logout
+//-------------
+// Logout Page
 app.post('/logout', (req, res) => {
+    
     //Store username before session is destroyed to avoid 502Err / Undefined User Err
     const username = req.session.username;
 
@@ -479,10 +466,9 @@ app.post('/logout', (req, res) => {
 
 });
     
-
-//Comment
+//--------------
+// Comment Page
 app.post('/comments', (req, res) => {
-    //Make sure flag and valid session object REVIEW
 
     //Check if user is logged in
     if (!req.session.isLoggedIn) {
@@ -493,42 +479,33 @@ app.post('/comments', (req, res) => {
     if (!text || text.trim() === '') {
         return res.render('new-comment', { 
             error: 'Comment cannot be empty.',
-             user: { name: req.session.username, isLoggedIn: true } // Pass user info
+            user: { name: req.session.username, isLoggedIn: true } // Pass user info
         });
     }
-    //doesnt change with display name changes
-    /*comments.push({
-        author: req.session.display_name,
-        text,
-        createdAt: new Date().toLocaleString()
-    });
-*/
-
-    const { parent_id } = req.body; // support optional replies
-    const parentId = parent_id ? parseInt(parent_id) : null; // null if top-level
+  
+    const { parent_id } = req.body; // Supports optional replies
+    const parentId = parent_id ? parseInt(parent_id) : null; // Null if top-level
 
 
     db.prepare(`
         INSERT INTO comments (user_id, parent_id, text, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
     `).run(req.session.userId, parentId, text);
 
-    /*res.render('comments', {
-        title: 'Comments',
-        comments,
-        user: { name: req.session.username, isLoggedIn: true },
-        message: 'Comment added.'
-    });*/
    res.redirect('/comments'); //////Do not want a page reload
 });
 
 
-// Use server.listen() instead of app.listen() after socket io integration
-//keeping 0.0.0.0 because docker and nginx use
+//--------------
+// Start Server
+//--------------
+
+// Use server.listen() instead of app.listen() after Socket.IO integration
+// (0.0.0.0 because docker and nginx use)
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://pdfinfoserver.org`);
 });
 
-// Graceful shutdown, this will help the session to close the db gracefully since we're now using it.
+// Graceful shutdown for session io
 process.on('SIGINT', () => {
   console.log('\nShutting down gracefully...');
   sessionStore.close();

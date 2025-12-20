@@ -1,3 +1,7 @@
+<!--=================================-->
+<!-- Customize Profile Page Template -->
+<!--=================================-->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,10 +16,12 @@
     <main>
         <h1>Customize Your Profile</h1>
 
+        <!-- Display error message if customization submission fails -->
         {{#if error}}
             <p style="color:red">{{error}}</p>
         {{/if}}
 
+        <!-- Profile customization form -->
         <form action="/api/auth/profile/customize" method="POST">
            
             <!-- Display Name -->
@@ -33,10 +39,12 @@
             <input type="color" id="display_name_color" name="display_name_color" value="{{customization.display_name_color}}">
             <br>
 
-            <!-- Avatar / Icon -->
+            <!-- Avatar selection: text input for custom URL -->
+            <!-- Bug: Avatar URL adds each time the page reloads -->
             <label for="avatar">Avatar URL or choose predefined:</label>
             <input type="text" id="avatar" name="avatar" value="{{customization.avatar}}" placeholder="Enter URL">
             <br>
+            <!-- Predefined avatar options -->
             <p>Or choose from predefined:</p>
             <select name="avatar">
                 <option value="avatar1.png" {{#if (eq customization.avatar "avatar1.png")}}selected{{/if}}>Avatar 1</option>

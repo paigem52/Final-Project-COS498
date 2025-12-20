@@ -1,51 +1,67 @@
-// -- Auth-Middleware module -- 
-/*AUTHENTICATION*/
+//=============================================
+// Auth-Middleware Module
+/* Handles authentication checks and login lockout protection for Express routes*/
+//=============================================
 
-// Uses login-tracker module
+// Dependency: tracks failed login attempts per username + IP
 const loginTracker = require('./login-tracker');
 
-// Middleware to check if user is authenticated
+//------------------------------------
+// Middleware: Require Authentication
+//------------------------------------
+
+// Checks for a valid session containing user id 
+// (Make sure user is logged in before accessing protected routes)
 function requireAuth(req, res, next) {
   if (req.session && req.session.userId) {
     next();
   } else {
-    // Returns 401 if not authenticated
+    // User is not authenticated
     res.status(401).json({ error: 'Authentication required' });
   }
 }
 
-/**
- Middleware to check username+IP-based login lockout
- Should be used before login route handlers
- Note: This requires the username to be in req.body.username
- */
+//------------------------------------
+// Middleware: Login Lockout Check
+//------------------------------------
+
+// Prevents brute-force login attempts 
+// (Enforces a username + IP-based lockout policy)
+// NOTES: - Should be used before login route handlers
+//        - Requires the username to be in req.body.username
 function checkLoginLockout(req, res, next) {
   const ipAddress = getClientIP(req);
   const username = req.body?.username;
   
-  // If no username provided, skip lockout check (will be handled by validation)
+  // If no username provided, skip lockout check 
+  // Handled by input validation
   if (!username) {
     return next();
   }
   
-  // Check lockout status manually for HBS rendering (overrides middleware JSON)
+  // Check lockout status using loginTracker
     const lockoutStatus = loginTracker.checkLockout(ipAddress, username);
     if (lockoutStatus.locked) {
+      //Convert remaining lockout time to minutes
       const minutesRemaining = Math.ceil(lockoutStatus.remainingTime / (60 * 1000));
-      // CHANGE: Render HBS page instead of sending JSON
+      // Render login page with error instead of returning JSON
+      // (Used for server-side HBS rendering)
       return res.status(429).render('login', { 
         error: `Too many failed login attempts. Try again in ${minutesRemaining} minute(s).` ,
         minutesRemaining
       });
     }
   
+  // No lockout detected, continue to login handler
   next();
 }
 
-/**
- Helper function to get client IP address
- Handles proxies and various connection types
- */
+//------------------------------------
+// Helper: Get Client IP Address
+//------------------------------------
+
+// Retrieves client's IP address while accounting for:
+// - Reverse proxies  -Load balances  -Direct connections
 function getClientIP(req) {
   return req.ip || 
          req.headers['x-forwarded-for']?.split(',')[0] || 
@@ -53,6 +69,9 @@ function getClientIP(req) {
          'unknown';
 }
 
+//-----------------
+// Export Modules
+//-----------------
 module.exports = {
   requireAuth,
   checkLoginLockout,

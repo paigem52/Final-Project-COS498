@@ -1,3 +1,7 @@
+<!--===========================-->
+<!-- New Comment Page Template -->
+<!--===========================-->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,9 +15,13 @@
 
     <main>
         <h1>Post a New Comment</h1>
+
+        <!-- Display error message if comment submission fails -->
         {{#if error}}
             <p style="color:red">{{error}}</p>
         {{/if}}
+
+        <!-- New comment form -->
         <form action="/comments" method="POST">
             <label>Comment:</label>
             <textarea name="text" id="text"> {{text}} </textarea>

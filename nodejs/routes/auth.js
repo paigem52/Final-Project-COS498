@@ -1,4 +1,9 @@
-// -- Routes/ auth Module -- 
+//=============================================
+// Routes: Auth Module
+/* Handles user authentication, registration, login, logout,
+  and profile management (view and customization)*/
+//=============================================
+
 const express = require('express');
 const router = express.Router();
 const db = require('../modules/database');
@@ -6,26 +11,21 @@ const { validatePassword, hashPassword, comparePassword } = require('../modules/
 const loginTracker = require('../modules/login-tracker');
 const { checkLoginLockout, getClientIP } = require('../modules/auth-middleware');
 
+// --------------------
+// Registration Routes
+// --------------------
 
-/* RES RENDER when --> page loads normally, success pages, GET routes
-RES STATUS when error
-page routes hbs --> res redirect
-apiroutes  json*/
-// --------------
-// --Register --
-// --------------
-
-// GET /register - Show registration form
+// Show registration form
 router.get('/register', (req, res) => {
   res.render('register');
 });
 
-// POST /register - Register a new user
+// Create new user account
 router.post('/register', async (req, res) => {
   try {
     const { username, password, email, display_name } = req.body;
     
-    // Validate input
+    // Validate required fields
     if (!username || !password || !email || !display_name) {
       return res.status(400).render('register', { 
         error: 'Username, password, email and display name are required' 
@@ -49,43 +49,46 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Check if email format is validated
+    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).render('register', { 
         error: 'Invalid email format' 
       });
-}
-    // remove??? Check if display_name is unique/akready exists --should i make it unique in db?
+    }
+
+    // Check display name uniqueness
     const existingDisplayName = db.prepare('SELECT id FROM users WHERE display_name = ?').get(display_name);
     if (existingDisplayName) {
       return res.status(409).render('register', { 
         error: 'Display name already taken' 
       });
-}
+    }
 
+    // Ensure display name is not the same as username
     if (display_name===username) {
       return res.status(400).render('register', {
         error: 'Display name cannot be the same as username'
       });
     }
 
-    // Check if email is unique
+    // Check email uniqueness
     const existingEmail = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
       if (existingEmail) {
         return res.status(409).render('register', { 
           error: 'Email already registered' 
         });
-}
-
+      }
     
-    // Hash the password before storing
+    // Hash password before saving
     const passwordHash = await hashPassword(password);
     
-    // Insert new user into database
+    // Insert user into database
     const new_insert = db.prepare('INSERT INTO users (username, password_hash, email, display_name) VALUES (?, ?, ?, ?)');
     const result = new_insert.run(username, passwordHash, email, display_name);
-    console.log('Current users in DB:', db.prepare('SELECT * from users').all());
+    
+    // Debug console message disabled for production:
+    //console.log('Current users in DB:', db.prepare('SELECT * from users').all());
     
     res.redirect('/login?message=registered');
     
@@ -94,21 +97,22 @@ router.post('/register', async (req, res) => {
     res.status(500).render('register', { error: 'Internal server error. Please try again later.' });
   }
 });
-// --------------
-// --Login--
-// --------------
 
-// GET /login - Show login form
+// --------------------
+// Login Routes
+// --------------------
+
+// Show login form
 router.get('/login', (req, res) => {
   const { message } = req.query;
   res.render('login', { message });
 });
-// POST /login - Authenticate user- Now includes lockout checking and attempt tracking
+// Authenticate user with lockout checking and attempt tracking
 router.post('/login', checkLoginLockout, async (req, res) => {
   try {
     const { username, password } = req.body;
     const ipAddress = getClientIP(req);
-    console.log('Login Post');
+
     // Validate input
     if (!username || !password) {
       // Record failed attempt if username is provided
@@ -120,10 +124,9 @@ router.post('/login', checkLoginLockout, async (req, res) => {
       });
     }
     
-    // Find user by username
+    // Fetch user by username
     const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-    
-    console.log('User fetched for login:', user);
+    // -- console.log('User fetched for login:', user);
 
     if (!user) {
       // Record failed attempt (user doesn't exist)
@@ -134,11 +137,10 @@ router.post('/login', checkLoginLockout, async (req, res) => {
       });
     }
     
-    // Compare entered password with stored hash
-    console.log('Login attempt:', { username, password, hash: user.password_hash});
+    // Verify password
     const passwordMatch = await comparePassword(password, user.password_hash);
-    console.log('Password match:', passwordMatch);
-    
+    // -- console.log('Password match:', passwordMatch);
+    // -- console.log('Login attempt:', { username, password, hash: user.password_hash});
     if (!passwordMatch) {
       // Record failed attempt (wrong password)
       loginTracker.recordAttempt(ipAddress, username, false);
@@ -147,20 +149,17 @@ router.post('/login', checkLoginLockout, async (req, res) => {
       });
     }
     
-    // Successful login
+    // Successful login: record attempt and update last login
     loginTracker.recordAttempt(ipAddress, username, true);
-    
-    // Successful login - Update last login time
     db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?')
       .run(user.id);
-    
+  
     // Create session
     req.session.userId = user.id;
     req.session.username = user.username;
     req.session.isLoggedIn = true;
     req.session.display_name = user.display_name;
     req.session.email = user.email;
-
 
     // Homepage
     return res.redirect('/');
@@ -172,9 +171,11 @@ router.post('/login', checkLoginLockout, async (req, res) => {
   }
 });
 
-/**
- * GET /logout - Logout user (GET version for easy link access)
- */
+// ---------------
+// Logout Routes
+// ---------------
+
+// Logout user (link access)
 router.get('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
@@ -187,9 +188,7 @@ router.get('/logout', (req, res) => {
   });
 });
 
-// -- Logout --
-// POST /logout - Logout user
-//uses json bc its js calls 
+// Logout via API (returns JSON) 
 router.post('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
@@ -200,19 +199,17 @@ router.post('/logout', (req, res) => {
   });
 });
 
-//PROFILE ROUTES
-/*
- GET /me - Get current user info (requires authentication)
- uses json bc api endpoint
- */
-// GET /profile - show user profile
+//-----------------
+// Profile Routes
+//-----------------
+
+// Show current user profile (requires login)
+// (Redirects to login instead of JSON)
 router.get('/profile', (req, res) => {
-  // Make sure user is logged in
   if (!req.session || !req.session.userId) {
-    return res.redirect('/login'); // redirect to login instead of JSON
+    return res.redirect('/login');
   }
 
-  // Fetch user info from DB
   const user = db.prepare(`
     SELECT id, username, display_name, email, created_at, last_login, profile_customization
     FROM users
@@ -223,19 +220,16 @@ router.get('/profile', (req, res) => {
     return res.status(404).render('profile', { error: 'User not found' });
   }
 
-  //Parse prof customization json
   const customization = user.profile_customization ? JSON.parse(user.profile_customization) : {};
-  
-  // Render profile page with user info
   res.render('profile', {
     title: `${user.display_name || user.username}'s Profile`,
     user,
     customization,
-    isLoggedIn: true    //fixes bug where login/register appear in account page
+    isLoggedIn: true
   });
 });
 
-// New GET /profile/customize
+// Show customization form
 router.get('/profile/customize', (req, res) => {
   if (!req.session?.userId) return res.redirect('/login');
 
@@ -247,7 +241,7 @@ router.get('/profile/customize', (req, res) => {
   res.render('profile-customize', { user, customization });
 });
 
-// POST /profile/customize - Update user profile and customization
+// Update profile info and customization
 router.post('/profile/customize', (req, res) => {
   if (!req.session?.userId) return res.redirect('/login');
 
@@ -262,19 +256,19 @@ router.post('/profile/customize', (req, res) => {
       display_name = null;
     }
 
-  //Validate email format only IF user typed on
-  if (email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).render('profile-customize', { 
-        user: req.session, 
-        customization: req.body, 
-        error: 'Invalid email format.' 
-      });
+    // Validate email format if provided
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).render('profile-customize', { 
+          user: req.session, 
+          customization: req.body, 
+          error: 'Invalid email format.' 
+        });
+      }
     }
-  }
 
-    // Check for unique display name
+    // Check display name uniqueness
     const existingDisplayName = db.prepare('SELECT id FROM users WHERE display_name = ? AND id != ?').get(display_name, req.session.userId);
     if (existingDisplayName) {
       return res.status(409).render('profile-customize', { 
@@ -284,7 +278,7 @@ router.post('/profile/customize', (req, res) => {
       });
     }
 
-    // Check for unique email
+    // Check email uniqueness
     const existingEmail = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, req.session.userId);
     if (existingEmail) {
       return res.status(409).render('profile-customize', { 
@@ -301,11 +295,11 @@ router.post('/profile/customize', (req, res) => {
       bio: bio || ''
     };
 
+    // Change if entered, if not keep original
     const finalDisplayName = display_name ?? req.session.display_name;
-    //Change email if entered, if not keep original
     const finalEmail = email ?? req.session.email;
 
-    // Update database
+    // Update user in database
     db.prepare(`
       UPDATE users
       SET display_name = ?, email = ?, profile_customization = ?
@@ -329,8 +323,9 @@ router.post('/profile/customize', (req, res) => {
   }
 });
 
-
-
+//-----------------
+// Export Modules
+//-----------------
 
 module.exports = router;
 

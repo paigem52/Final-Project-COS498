@@ -1,3 +1,6 @@
+<!--=================================-->
+<!-- User Registration Page Template -->
+<!--=================================-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,11 +15,13 @@
 
     <main>
         <h1>Register</h1>
-        <!-- Error message for already used usernames-->
+        <!-- Display server-side error messages -->
         {{#if error}}
             <p style="color:red">{{error}}</p>
         {{/if}}
+         <!-- Registration form, sends POST request to /api/auth/register -->
         <form action="/api/auth/register" method="POST">
+
             <!-- Makes browser prevent submission until all fields are filled-->
             <label><strong>Username:</strong></label>
             <input type="text" name="username" required>
@@ -31,6 +36,7 @@
             <br>
             <br>
             <div> 
+                <!-- Password requirements guidance for the user -->
                 <label><small>Password Requirements:</small></label>
                 <ul> </small>
                     <li><small>At least 8 characters long</small></li>
@@ -49,7 +55,12 @@
             <button type="submit">Register</button>
         </form>
 
+        <!-- Links for navigation -->
         <p><a href="/login">Already have an account? Login here</a></p>
         <p><a href="/">Back to Home</a></p>
     </main>
+    {{> footer}}
+    
+</body>
+</html>
 

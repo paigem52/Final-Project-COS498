@@ -1,47 +1,59 @@
+<!--============================-->
+<!-- User Profile Page Template -->
+<!--============================-->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Page title dynamically set to user's display name -->
     <title>{{user.display_name}}'s Profile</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
     {{> nav }}
 
-<main>
-    <h1 style="color: {{customization.display_name_color}};">
-        {{user.display_name}}
-    </h1>
+        <main>
+            <!-- User's display name with custom color -->
+            <h1 style="color: {{customization.display_name_color}};">
+                {{user.display_name}}
+            </h1>
 
-    <!-- Avatar -->
-    {{#if customization.avatar}}
-        <img src="{{customization.avatar}}" alt="Avatar" width="100">
-    {{/if}}
+            <!-- Avatar -->
+            {{#if customization.avatar}}
+                <img src="{{customization.avatar}}" alt="Avatar" width="100">
+            {{/if}}
 
-    <!-- Bio -->
-    {{#if customization.bio}}
-        <p>{{customization.bio}}</p>
-    {{/if}}
+            <!-- Bio -->
+            {{#if customization.bio}}
+                <p>{{customization.bio}}</p>
+            {{/if}}
 
-    <section>
-        <p><strong>Username:</strong> {{user.username}}</p>
-        <p><strong>Display Name:</strong> {{user.display_name}}</p>
-        <p><strong>Email:</strong> {{user.email}}</p>
-        <p><strong>Account Created:</strong> {{user.created_at}}</p>
-        <p><strong>Last Login:</strong> {{user.last_login}}</p>
-    </section>
-    
-    <a href="/api/auth/profile/customize"> <button>Edit Profile</button> </a>
+            <!-- Basic account information -->
+            <section>
+                <p><strong>Username:</strong> {{user.username}}</p>
+                <p><strong>Display Name:</strong> {{user.display_name}}</p>
+                <p><strong>Email:</strong> {{user.email}}</p>
+                <p><strong>Account Created:</strong> {{user.created_at}}</p>
+                <p><strong>Last Login:</strong> {{user.last_login}}</p>
+            </section>
+            
+            <!-- Link to profile customization page -->
+            <a href="/api/auth/profile/customize"> <button>Edit Profile</button> </a>
 
-    
+            <!-- Logout form -->
+            <section>
+                <form action="/logout" method="POST">
+                    <button type="submit">Logout</button>
+                </form>
+            </section>
 
-    <section>
-        <form action="/logout" method="POST">
-            <button type="submit">Logout</button>
-        </form>
-    </section>
-
-    <p><a href="/"> Back to Home</a></p>
-</main>
+            <p><a href="/">Back to Home</a></p>
+        </main>
+        
+   {{> footer}}
+</body>
+</html>
 

@@ -1,29 +1,47 @@
-// -- Login-tracker Module --
+//=============================================
+// Login-Tracker Module
+/* Tracks failed login attemps by username + IP, enforcing temporary lockouts
+  to prevent brute-force authentication attacks*/
+//=============================================
+
+//Import shared SQLite database connection
 const db = require('./database');
 
+// --------------
 // Configuration
-const MAX_ATTEMPTS = 5;           // Maximum failed attempts allowed
-const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
+// --------------
 
-// Records a login attempt
+// Maximum number of failed login attempts allowed
+const MAX_ATTEMPTS = 5;
+
+// Duration of lockout period (15 minutes in milliseconds)
+const LOCKOUT_DURATION = 15 * 60 * 1000;
+
+//----------------------
+// Record Login Attempt
+//----------------------
+
+// Stores each login attempt in the database
 function recordAttempt(ipAddress, username, success) {
   const stmt = db.prepare(`
     INSERT INTO login_attempts (ip_address, username, success)
     VALUES (?, ?, ?)
   `);
-  
+  // `Success` is stored as 1 (true) or 0 (false)
   stmt.run(ipAddress, username, success ? 1 : 0);
 }
 
+//----------------------
+// Check Lockout Status
+//----------------------
 
 // Checks if a username+IP combination is currently locked out
-
+// (Based on recent failures)
 function checkLockout(ipAddress, username) {
   const cutoffTime = Date.now() - LOCKOUT_DURATION;
   
-  // Get all failed attempts for this IP+username combination in the lockout window
-  // 'unixepoch' tells SQLite to interpret the number as seconds since Jan 1, 1970
-  // We divide Date.now() by 1000 to convert from milliseconds to seconds
+  // Retrieve failed attempts within the lockout window
+  // 'unixepoch' interprets the timestamp as seconds since Jan 1, 1970
   const stmt = db.prepare(`
     SELECT COUNT(*) as count, MAX(attempt_time) as last_attempt
     FROM login_attempts
@@ -32,9 +50,10 @@ function checkLockout(ipAddress, username) {
       AND success = 0
       AND datetime(attempt_time) > datetime(?, 'unixepoch')
   `);
-  
+  // Date.now() is converted from milliseconds to seconds
   const result = stmt.get(ipAddress, username, cutoffTime / 1000);
   
+  // If failed attempts exceed the allowed maximum
   if (result.count >= MAX_ATTEMPTS) {
     // Calculate remaining lockout time
     const lastAttempt = new Date(result.last_attempt).getTime();
@@ -48,6 +67,7 @@ function checkLockout(ipAddress, username) {
     };
   }
   
+  // No lockout
   return {
     locked: false,
     remainingTime: 0,
@@ -55,10 +75,11 @@ function checkLockout(ipAddress, username) {
   };
 }
 
-/*
- Clears old login attempts (cleanup function)
- Removes attempts older than the lockout duration
- */
+//----------------------
+// Cleanup Old Attempts
+//----------------------
+
+// Removes login attempt records older than the lockout duration to keep table small
 function cleanupOldAttempts() {
   const cutoffTime = Date.now() - LOCKOUT_DURATION;
   
@@ -68,11 +89,16 @@ function cleanupOldAttempts() {
     WHERE datetime(attempt_time) < datetime(?, 'unixepoch')
   `);
   
+  // Converted to seconds
   const result = stmt.run(cutoffTime / 1000);
   return result.changes;
 }
 
-// Clean up old attempts every hour
+//----------
+// Cleanup
+//----------
+
+// Automatically removes expired login attempts every hour
 setInterval(() => {
   const deleted = cleanupOldAttempts();
   if (deleted > 0) {
@@ -80,6 +106,9 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000);
 
+//-----------------
+// Export Modules
+//-----------------
 module.exports = {
   recordAttempt,
   checkLockout,

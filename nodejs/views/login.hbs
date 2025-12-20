@@ -1,3 +1,7 @@
+<!--================-->
+<!-- Login HBS -->
+<!--================-->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,6 +15,7 @@
 
     <main>
         <h1>Login</h1>
+
          <!-- Error and Success Messages-->
         {{#if error}}
             <p style="color:red">{{error}}</p>
@@ -20,18 +25,26 @@
             <p style="color:green">{{success}}</p>
         {{/if}}
 
-        <!-- Login page requires username and password-->
+        <!-- Login form: requires username and password -->
         <form action="/api/auth/login" method="POST">
+
+            <!-- Username input field -->
             <label>Username:</label>
             <input type="text" name="username" required>
             <br>
+
+            <!-- Password input field -->
             <label>Password:</label>
             <input type="password" name="password" required>
             <br>
+
+            <!-- Submit button -->
             <button type="submit">Login</button>
         </form>
+
+        <!-- Links for account registration and navigation -->
         <p><a href="/api/auth/register">Don't have an account? Register here</a></p>
-        <p><a href="/">← Back to Home</a></p>
+        <p><a href="/">Back to Home</a></p>
     </main>
 
     {{> footer}}

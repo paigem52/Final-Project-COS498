@@ -1,4 +1,6 @@
-<!--Basic minimal home page-->
+<!--==============-->
+<!-- Homepage HBS -->
+<!--==============-->
 
 <!DOCTYPE html>
 <html lang="en">
@@ -13,16 +15,19 @@
     <main>
         <h1>{{title}}</h1>
 
+        <!-- Validates user's login status -->
         {{#if user.isLoggedIn}}
-      
+            <!-- Logged-in user view -->
             <p>Welcome, <strong>{{user.display_name}}</strong>!</p>
             <p>You’ve visited this page {{user.visitCount}} times this session.</p>
             <p>Logged in at: {{user.loginTime}}</p>
         {{else}}
+                <!-- Guest view -->
                 <p>Welcome, Guest!</p>
                 <p>Please <a href="/login">log in</a> or <a href="/register">register</a> to join the conversation.</p>
         {{/if}}
 
+        <!-- Site description -->
         <p> This serves as a secure web forum for COS498- 
             Topics in Computer Science</p>
         <p> This webpage provides a reliable platform for discussions.
@@ -32,6 +37,7 @@
             and HTTPS encryption, ensuring data integrity and user privacy. 
             Designed for efficiency and ease of use, the forum offers features such as comment pagination and profile customization. </p>
     
+        <!-- Can only join chat if logged in -->
         {{#if isLoggedIn}}
             <a href="/chat"><button>Join Chat</button></a>
         {{/if}}

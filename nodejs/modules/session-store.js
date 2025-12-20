@@ -1,39 +1,46 @@
-// sqlite-session-store.js
-/* This module was retrieved from Troy Schotter's webserver tomb
-(Creating Your Own Node.js Modules/ Advanced Module Patterns),
-with small changes and additional comments inserted for further explanation
-per the projects requirements.*/
+//=============================================
+// SQLite-Session-Store Module
+/* Custom SQLite-backend session store for express-session*/
+//=============================================
 
-// Import the base Store class from express-session
+//-------------
+// Dependencies
+//-------------
+
+// Import Base Store class required by express-session
 const { Store } = require('express-session');
+
 // Synchronous SQLite interface
 const Database = require('better-sqlite3');
+
+// Path utility
 const path = require('path');
 
-// SQLiteStore extends Store class
+//-------------------
+// SQLiteStore Class
+//-------------------
+
+// Extends express-session's Store class to persist session data in SQLite database
 class SQLiteStore extends Store {
+
   // Constructor runs when the store is instantiated
   constructor(options = {}) {
+
     // Call the parent Store constructor
     super(options);
 
-    // Use wildwest database to access sessions schema
-    // Or else this will fall back to a local sessions.db file
+    // Determine database path:
+    //      - Uses shared wildwest database if provided
+    //      - Otherwise falls back to a local SQLite file
     const dbPath = process.env.WILDWEST_DB_PATH ||  path.join(__dirname, 'wildwest.db');
 
-    // Create the SQLite database
+    // Initialize SQLite database connection
     this.db = new Database(dbPath);
 
     // Name of the sessions table
     this.table = 'sessions';
 
-
     // Create sessions table if it doesn't exist
-    /* Stores:
-      - session_id: unique identifier for the session
-      - sess: text string of session data
-      - expiration_date: timestamp for expiration
-      - user_id: links session to a user*/
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS ${this.table} (
         session_id TEXT PRIMARY KEY,
@@ -45,42 +52,49 @@ class SQLiteStore extends Store {
       )
     `);
 
-    // Periodically clean up expired sessions (runs every 15 minutes)
+    // Periodically remove expired sessions (every 15 minutes)
     this.cleanupInterval = setInterval(() => {
       this.cleanup();
     }, 15 * 60 * 1000);
   }
 
-  // Retrieve a session by session ID
+  //------------------
+  // Retrieve Session
+  //------------------
+
+  // Fetches a non-expired session by session ID
   get(session_id, callback) {
-    // Query for a non-expired session
     const row = this.db.prepare(
       `SELECT sess FROM ${this.table} WHERE session_id = ? AND expire > ?`
     ).get(session_id, Date.now());
 
-    // If a session exists, parse the JSON data
     if (row) {
       try {
+        // Parse stored JSON session data
         const session = JSON.parse(row.sess);
         callback(null, session);
       } catch (err) {
-        // No more to parse
         callback(err);
       }
     } else {
-      // No session found
+      // No active session found
       callback(null, null);
     }
   }
+  //--------------
+  // Save Session
+  //--------------
 
-  // Save session
+  // Inserts or updates a session record
   set(session_id, sess, callback) {
-    // Determine session expiration time
-    // Uses cookie maxAge if available, otherwise defaults to 24 hours
+
+    // Determine session expiration time:
+    //    - Uses cookie maxAge if available
     const maxAge = sess.cookie?.maxAge;
+    //    - Otherwise defaults to 24 hours
     const expire = maxAge ? Date.now() + maxAge : Date.now() + (24 * 60 * 60 * 1000);
 
-    // Convert session object to JSON for storage
+    // Serialize session object for storage
     const sessData = JSON.stringify(sess);
 
     try {
@@ -95,7 +109,11 @@ class SQLiteStore extends Store {
     }
   }
 
-  // Destroy a session by ID
+  //-----------------
+  // Destroy Session
+  //-----------------
+
+  // Deletes a session by session ID
   destroy(session_id, callback) {
     try {
       this.db.prepare(`DELETE FROM ${this.table} WHERE session_id = ?`).run(session_id);
@@ -105,14 +123,18 @@ class SQLiteStore extends Store {
     }
   }
 
-  // Retrieve all active (non-expired) sessions
+  //-----------------------
+  // Retrieve All Sessions
+  //-----------------------
+
+  // Returns all active (non-expired) sessions
   all(callback) {
     try {
       const rows = this.db.prepare(
         `SELECT sess FROM ${this.table} WHERE expire > ?`
       ).all(Date.now());
 
-      // Parse each session JSON string into an object
+      // Deserialize each session
       const sessions = rows.map(row => JSON.parse(row.sess));
       callback(null, sessions);
     } catch (err) {
@@ -120,14 +142,18 @@ class SQLiteStore extends Store {
     }
   }
 
-  // Remove expired sessions from the database
+  //-------------------------
+  // Cleanup Expired Sessions
+  //-------------------------
+
+  // Remove expired sessions from database
   cleanup() {
     try {
       const result = this.db.prepare(
         `DELETE FROM ${this.table} WHERE expire <= ?`
       ).run(Date.now());
 
-      // Log cleanup activitt if sessions were removed
+      // Log cleanup activity if any sessions were removed
       if (result.changes > 0) {
         console.log(`Cleaned up ${result.changes} expired session(s)`);
       }
@@ -136,16 +162,22 @@ class SQLiteStore extends Store {
     }
   }
 
-  // Close the database connection
+  //-------------
+  // Close Store
+  //-------------
+
+  // Stops cleanup timer and closes database connection
   close() {
-    // Stop the cleanup timer
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
     }
-    // Close the SQLite database connection
     this.db.close();
   }
 }
+
+//-----------------
+// Export Modules
+//-----------------
 
 // Export the SQLiteStore class for use in express-session
 module.exports = SQLiteStore;

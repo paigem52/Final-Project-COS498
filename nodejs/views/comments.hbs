@@ -1,3 +1,7 @@
+<!--==============-->
+<!-- Comments HBS -->
+<!--==============-->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,28 +16,31 @@
     <main>
         <h1>All Comments</h1>
 
-        <!-- Total number of comments -->
+        <!-- Display total number of comments -->
         <p>Total Comments: {{totalComments}}</p>
 
+        <!-- Check if there are any comments -->
         {{#if comments.length}}
             <ul>
+                <!-- Loop through each top-level comment -->
                 {{#each comments}}
                     <li>
                         <strong>{{author_display_name}}</strong>: {{text}} ({{createdAt}})
 
-                        <!-- Reply form for top-level comment -->
+                        <!-- Reply form for this comment -->
                         <form action="/comments" method="POST" style="display:inline;">
                             <input type="hidden" name="parent_id" value="{{id}}">
                             <input type="text" name="text" placeholder="Reply...">
                             <button type="submit">Reply</button>
                         </form>
-
+                        
+                        <!-- Nested replies, if any -->
                         {{#if replies.length}}
                             <ul>
                                 {{#each replies}}
                                     <li>
                                         <strong>{{author_display_name}}</strong>: {{text}} ({{createdAt}})
-                                        <!-- No further nested reply form -->
+                                        <!-- No nested reply form for replies (only one level) -->
                                     </li>
                                 {{/each}}
                             </ul>
@@ -42,18 +49,22 @@
                 {{/each}}
             </ul>
         {{else}}
+        <!-- Display if there are no comments -->
             <p>No comments yet.</p>
         {{/if}}
 
         <!-- Pagination -->
         {{#if totalPages}}
             <nav>
+                <!-- Previous page link -->
                 {{#if (gt currentPage 1)}}
                     <a href="/comments?page={{subtract currentPage 1}}">Previous</a>
                 {{/if}}
 
+                <!-- Current page info -->
                 Page {{currentPage}} of {{totalPages}}
-
+                
+                <!-- Next page link -->
                 {{#if (lt currentPage totalPages)}}
                     <a href="/comments?page={{add currentPage 1}}">Next</a>
                 {{/if}}

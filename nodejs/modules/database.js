@@ -1,9 +1,18 @@
-// -- Database module -- 
-/* This modulensets up the wildwest SQLite3 database with a users table*/
+//=============================================
+// Database Module
+/* Sets up the wildwest SQLite3 database */
+//=============================================
+
+// Import SQLite database library
 const Database = require('better-sqlite3');
+
+// Import path utility
 const path = require('path');
 
+// Build absolute path to SQLite database file
 const dbPath = path.join(__dirname, 'wildwest.db');
+
+// Initialize and connect to SQLite database
 const db = new Database(dbPath);
 
 // Enable foreign keys
@@ -82,7 +91,7 @@ db.exec(`
 // ----------------
 // Socket Table
 // ----------------
-//Store chat messages
+//Store chat messages for real-time socket communication
 
 db.exec(`CREATE TABLE IF NOT EXISTS chat (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,17 +102,19 @@ db.exec(`CREATE TABLE IF NOT EXISTS chat (
 );
 `)
 
-// Create index for faster 
+// Create index for faster retrieval of chat messages (optimizes order)
 db.exec(`
  CREATE INDEX IF NOT EXISTS idx_chat_timestamp ON chat(timestamp DESC);
 `);
 
-
-console.log('Using SQLite DB at:', dbPath);
+// Debug console messages disabled for production:
+/*console.log('Using SQLite DB at:', dbPath);
 
 // List tables
 const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
-console.log('Tables:', tables);
+console.log('Tables:', tables);*/
 
-
+//-----------------
+// Export Modules
+//-----------------
 module.exports = db;

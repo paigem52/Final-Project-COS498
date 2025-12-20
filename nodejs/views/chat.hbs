@@ -1,21 +1,34 @@
+<!--====================-->
+<!-- Live Chat Page HBS -->
+<!--====================-->
+<!-- Displays chat window, input, and handles real time messaging with Socket.IO-->
+
 <h1>Live Chat</h1>
 
+<!-- Chat header showing user's display name and leave button -->
 <div class="chat-header">
     <h2>Welcome, {{user.display_name}}</h2>
+    <!-- Leave chat button redirects to home page -->
     <form action="/" method="get" style="display:inline;">
         <button type="submit">Leave Chat</button>
     </form>
 </div>
 
+<!-- Chat message display area -->
 <div id="chatWindow" style="height:400px; overflow-y:auto; border:1px solid #ccc; padding:5px;"></div>
+
+<!-- Input box for typing messages -->
 <input id="chatInput" placeholder="Type a message" />
 <button id="sendBtn">Send</button>
 
+<!-- Socket.IO client library -->
 <script src="/socket.io/socket.io.js"></script>
 
 <script>
+    // Connect to Socket.IO server
     const socket = io();
 
+    // Format timestamp for display in chat
     function formatTimestamp(iso) {
         const date = new Date(iso);
         const options = { 
@@ -26,18 +39,28 @@
         return date.toLocaleString('en-US', options);
     }
 
-    // Receive chat history
+    //----------------------
+    // Receive Chat History
+    //----------------------
+
     socket.on('chatHistory', messages => {
         const chatWindow = document.getElementById('chatWindow');
+
+        // Loop through each message and append to chat window
         messages.forEach(msg => {
             const div = document.createElement('div');
             div.textContent = `[${formatTimestamp(msg.timestamp)}] ${msg.display_name}: ${msg.message}`;
             chatWindow.appendChild(div);
         });
+
+         // Scroll to bottom to show latest messages
         chatWindow.scrollTop = chatWindow.scrollHeight;
     });
 
-    // Receive new messages
+    //----------------------------------
+    // Receive New Messages (Real-Time)
+    //----------------------------------
+    
     socket.on('message', msg => {
         const chatWindow = document.getElementById('chatWindow');
         const div = document.createElement('div');
@@ -46,12 +69,20 @@
         chatWindow.scrollTop = chatWindow.scrollHeight;
     });
 
-    // Send message
+    //----------------------------------
+    // Send New Message (To Server)
+    //----------------------------------
     document.getElementById('sendBtn').addEventListener('click', () => {
         const input = document.getElementById('chatInput');
         const message = input.value.trim();
+
+        // Prevent sending empty messages
         if (!message) return;
+
+        // Emit message event to server
         socket.emit('sendMessage', { message });
+
+        // Clear input box
         input.value = '';
     });
 </script>
