@@ -79,6 +79,25 @@ db.exec(`
   ON login_attempts(ip_address, username, attempt_time)
 `);
 
+// ----------------
+// Socket Table
+// ----------------
+//Store chat messages
+
+db.exec(`CREATE TABLE IF NOT EXISTS chat (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    display_name TEXT,
+    message TEXT NOT NULL,
+    timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+);
+`)
+
+// Create index for faster 
+db.exec(`
+ CREATE INDEX IF NOT EXISTS idx_chat_timestamp ON chat(timestamp DESC);
+`);
+
 
 console.log('Using SQLite DB at:', dbPath);
 

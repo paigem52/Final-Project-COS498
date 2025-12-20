@@ -11,7 +11,25 @@ const authRoutes = require('./routes/auth');
 const { requireAuth } = require('./modules/auth-middleware');
 const db = require('./modules/database');
 
-//Interface for module
+// Socket.io 
+const http = require('http');
+const { Server } = require('socket.io');
+
+// Create HTTP server from Express app
+const server = http.createServer(app);
+
+// Add Socket.IO to server
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
+
+// Attach io to app so routers can access it
+app.set('io', io);
+
+// Interface for module
 const PORT = process.env.PORT || 3498;
 
 //--------------------------------------------------------------------
@@ -24,7 +42,7 @@ const comments = [];
 const sessions = [];
 
 //--------------------------------------------------------------------
-//Set up Handlebars
+// Handlebars Setup
 //--------------------------------------------------------------------
 app.set('view engine', 'hbs');
 app.set('views', path.join(__dirname, 'views'));
@@ -40,7 +58,6 @@ hbs.registerHelper('subtract', (a, b) => a - b);
 hbs.registerHelper('gt', (a, b) => a > b);
 hbs.registerHelper('lt', (a, b) => a < b);
 
-
 //Register partials directory
 hbs.registerPartials(path.join(__dirname, 'views', 'partials'));
 
@@ -55,14 +72,13 @@ app.set('trust proxy',1);
 // Serve static files from the 'public' directory
 app.use(express.static('public'));
 
-
 // Session configuration with SQLite store
 const sessionStore = new SQLiteStore({
   db: path.join(__dirname, 'sessions.db'),
   table: 'sessions'
 });
 
-app.use(session({
+const sessionMiddleware = session({
   store: sessionStore,
   secret: process.env.SESSION_SECRET || 'change-this-secret-in-production',
   resave: false,
@@ -71,11 +87,12 @@ app.use(session({
     secure: true, // True = HTTPS
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
-}));
+});
 
-// Routes
-app.use('/api/auth', authRoutes);
+app.use(sessionMiddleware);
+io.engine.use(sessionMiddleware);
 
+// Make login info available in templates
 //Login State to help nav partials
 app.use((req, res, next) => {
     res.locals.isLoggedIn = req.session.isLoggedIn || false;
@@ -83,6 +100,15 @@ app.use((req, res, next) => {
     res.locals.display_name = req.session.display_name || null;
     next();
 });
+
+
+
+// Routes
+//----------------------------------
+app.use('/api/auth', authRoutes);
+app.use('/api/chat', require('./routes/chat')); // chat API for history
+
+
 
 //--------------------------------------------------------------------
 //Health/Test Routes
@@ -109,6 +135,52 @@ app.get('/test', (req, res) => {
 });
 
 //--------------------------------------------------------------------
+// Socket.IO Real-Time Chat
+//--------------------------------------------------------------------
+io.on('connection', (socket) => {
+    const session = socket.request.session;
+
+    if (!session?.isLoggedIn) {
+        socket.emit('error', { message: 'Authentication required' });
+        socket.disconnect();
+        return;
+    }
+
+    console.log(`User ${session.display_name} connected to chat.`);
+
+    // Send last 50 messages
+    const recentMessages = db.prepare(`
+        SELECT display_name, message, timestamp
+        FROM chat
+        ORDER BY timestamp DESC
+        LIMIT 50
+    `).all().reverse(); // oldest first
+    socket.emit('chatHistory', recentMessages);
+
+    // Handle incoming messages
+    socket.on('sendMessage', (data) => {
+        console.log('Received message:', data);
+        const msg = data.message?.trim();
+        if (!msg) return;
+
+        const timestamp = new Date().toISOString();
+        const displayName = session.display_name;
+        const userId = session.userId;
+
+        db.prepare(`
+            INSERT INTO chat (user_id, display_name, message, timestamp)
+            VALUES (?, ?, ?, ?)
+        `).run(userId, displayName, msg, timestamp);
+
+        io.emit('message', { display_name: displayName, message: msg, timestamp });
+    });
+
+    socket.on('disconnect', () => {
+        console.log(`User ${session.display_name} disconnected.`);
+    });
+});
+
+//--------------------------------------------------------------------
 //GET Routes
 //--------------------------------------------------------------------
 
@@ -126,12 +198,21 @@ app.get('/', (req, res) => {
     // Check if user is logged in via session
     if (req.session.isLoggedIn) {
         console.log('succesfully pulled session');
+        // Format login time nicely
+        const loginTimeISO =req.session.loginTime || new Date().toISOString();
+        const loginTimeFormatted = new Date(loginTimeISO).toLocaleString('en-US', { 
+                timeZone: 'America/New_York',
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: true 
+            });
+
         user = {
             name: req.session.username,
             display_name: req.session.display_name,
             isLoggedIn: true,
-            loginTime: req.session.loginTime,
-            visitCount: req.session.visitCount || 0
+            loginTime: loginTimeFormatted,
+            visitCount: req.session.visitCount
         };
         
         // Increment visit count
@@ -140,7 +221,7 @@ app.get('/', (req, res) => {
    
     //Load home page with specific user
     res.render('home', {
-        title: 'Welcome to Wild West Forum', 
+        title: 'Welcome to Less Wild West Forum', 
         user: user
     });
 });
@@ -220,7 +301,24 @@ app.get('/comments', (req, res) => {
     const commentsWithReplies = topComments.map(comments => {
         return {
             ...comments,
-            replies: replies.filter(r => r.parent_id === comments.id)
+             // Convert timestamp for top-level comment
+            createdAt: new Date(comments.createdAt).toLocaleString('en-US', { 
+                timeZone: 'America/New_York', 
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: true 
+            }),
+            
+            replies: replies.filter(r => r.parent_id === comments.id).map(r => ({
+            ...r,
+                // Convert timestamp for replies
+                createdAt: new Date(r.createdAt).toLocaleString('en-US', { 
+                    timeZone: 'America/New_York', 
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    hour12: true 
+                })
+            }))
         };
     });
 
@@ -262,6 +360,16 @@ app.get('/comment/new', (req, res) => {
 app.get('/api/protected', requireAuth, (req, res) => {
   res.send(`Protected route that needs authentication. User: ${req.session.username} ID: ${req.session.userId}`);
 });
+
+app.get('/chat', (req, res) => {
+    if (!req.session.isLoggedIn) return res.redirect('/login');
+    res.render('chat', { 
+        title: 'Live Chat', 
+        user: { display_name: req.session.display_name } 
+    });
+});
+
+
 
 //--------------------------------------------------------------------
 //POST Routes
@@ -413,9 +521,11 @@ app.post('/comments', (req, res) => {
    res.redirect('/comments'); //////Do not want a page reload
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
+
+// Use server.listen() instead of app.listen() after socket io integration
+//keeping 0.0.0.0 because docker and nginx use
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://pdfinfoserver.org`);
 });
 
 // Graceful shutdown, this will help the session to close the db gracefully since we're now using it.

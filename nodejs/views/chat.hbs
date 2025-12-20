@@ -1,0 +1,57 @@
+<h1>Live Chat</h1>
+
+<div class="chat-header">
+    <h2>Welcome, {{user.display_name}}</h2>
+    <form action="/" method="get" style="display:inline;">
+        <button type="submit">Leave Chat</button>
+    </form>
+</div>
+
+<div id="chatWindow" style="height:400px; overflow-y:auto; border:1px solid #ccc; padding:5px;"></div>
+<input id="chatInput" placeholder="Type a message" />
+<button id="sendBtn">Send</button>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+    const socket = io();
+
+    function formatTimestamp(iso) {
+        const date = new Date(iso);
+        const options = { 
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: true 
+        };
+        return date.toLocaleString('en-US', options);
+    }
+
+    // Receive chat history
+    socket.on('chatHistory', messages => {
+        const chatWindow = document.getElementById('chatWindow');
+        messages.forEach(msg => {
+            const div = document.createElement('div');
+            div.textContent = `[${formatTimestamp(msg.timestamp)}] ${msg.display_name}: ${msg.message}`;
+            chatWindow.appendChild(div);
+        });
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    });
+
+    // Receive new messages
+    socket.on('message', msg => {
+        const chatWindow = document.getElementById('chatWindow');
+        const div = document.createElement('div');
+        div.textContent = `[${formatTimestamp(msg.timestamp)}] ${msg.display_name}: ${msg.message}`;
+        chatWindow.appendChild(div);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    });
+
+    // Send message
+    document.getElementById('sendBtn').addEventListener('click', () => {
+        const input = document.getElementById('chatInput');
+        const message = input.value.trim();
+        if (!message) return;
+        socket.emit('sendMessage', { message });
+        input.value = '';
+    });
+</script>

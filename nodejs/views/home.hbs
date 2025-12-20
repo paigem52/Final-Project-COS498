@@ -15,7 +15,7 @@
 
         {{#if user.isLoggedIn}}
       
-            <p>Welcome back, <strong>{{user.display_name}}</strong>!</p>
+            <p>Welcome, <strong>{{user.display_name}}</strong>!</p>
             <p>You’ve visited this page {{user.visitCount}} times this session.</p>
             <p>Logged in at: {{user.loginTime}}</p>
         {{else}}
@@ -23,12 +23,20 @@
                 <p>Please <a href="/login">log in</a> or <a href="/register">register</a> to join the conversation.</p>
         {{/if}}
 
-    <p> This serves as a very insecure web forum for COS498- 
-        Topics in Computer Science</p>
-    <p> This webpage was implemented using Handlebars with partials, 
-        containerized using Docker, indicated log in/log out via a cookie session.
-        This project is also maintained in a Git repository. This means it can be cloned.</p>
-  </main>
+        <p> This serves as a secure web forum for COS498- 
+            Topics in Computer Science</p>
+        <p> This webpage provides a reliable platform for discussions.
+            Users can create accounts, manage profiles, and participate in threaded conversations or real-time chat, 
+            all within a highly secure environment. 
+            The application employs best practices in web security, including password hashing, account lockout mechanisms, 
+            and HTTPS encryption, ensuring data integrity and user privacy. 
+            Designed for efficiency and ease of use, the forum offers features such as comment pagination and profile customization. </p>
+    
+        {{#if isLoggedIn}}
+            <a href="/chat"><button>Join Chat</button></a>
+        {{/if}}
+
+    </main>
 
     {{> footer}}
 </body>
